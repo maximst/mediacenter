@@ -100,7 +100,6 @@ class YouTubeView(object):
             list_widget = QListWidget(flow=QListView.LeftToRight)
             list_widget.setViewMode(QListView.IconMode)
             list_widget.setWrapping(False)
-            list_widget.setTitle
             for col in row['shelfRenderer']['content']['horizontalListRenderer']['items']:
                 it = col.get('gridVideoRenderer', col.get('gridChannelRenderer', {}))
                 thumb = it.get('thumbnail', {}).get('thumbnails', [{}])[0].get('url', 'default')
