@@ -9,13 +9,14 @@ from categories import Categories
 from youtube import YouTubeView
 
 
-class MainWidget(QWidget):
+class MainWidget(QScrollArea):
     current_view = None
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.youtube = YouTubeView(self)
         self.views = (self.youtube, )
+        self.setVerticalScrollBar(QScrollBar())
 
     def _show_view(self, view):
         [v.hide() for v in self.views if v != view]
@@ -68,6 +69,12 @@ app = QApplication(sys.argv)
 import locale
 locale.setlocale(locale.LC_NUMERIC, 'C')
 win = Main()
+win.setStyleSheet("""
+    QWidget, QMainWindow {
+        background-color: rgba(50,50,50, 0.8);
+        color: #fff;
+    }
+""")
 win.categories.render()
 win.setAttribute(Qt.WA_NoSystemBackground, True)
 win.setAttribute(Qt.WA_TranslucentBackground, True)

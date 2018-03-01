@@ -42,7 +42,7 @@ class Categories(QDockWidget):
         super().__init__(*args, **kwsrgs)
         self.setFloating(False)
         self.setAllowedAreas(Qt.LeftDockWidgetArea)
-        #self.setFeatures(Categories.NoDockWidgetFeatures)
+        self.setFeatures(Categories.NoDockWidgetFeatures)
         self.categories_list = CategoriesList()
         self.setWidget(self.categories_list)
 
