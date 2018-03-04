@@ -16,7 +16,7 @@ class CategoriesList(QListWidget):
         super().__init__(*args, **kwsrgs)
         self.setStyleSheet("""
             QWidget {
-                background-color: rgba(50,50,50, 0.5);
+                background-color: rgba(50,50,50, 1);
                 color: #fff;
                 border: none;
             }
@@ -24,7 +24,7 @@ class CategoriesList(QListWidget):
                 background-color: rgba(100,100,100, 0.5);
             }
             QWidget:item {
-                background-color: rgba(50,50,50, 0.5);
+                background-color: rgba(50,50,50,1);
                 text-align: center;
             }
         """)
@@ -50,10 +50,11 @@ class Categories(QDockWidget):
         _handler = lambda: print('Switch category')
         for i, item in enumerate(CATEGORIES or []):
             list_item = QListWidgetItem(QIcon(item[0]), '')
-            list_item.handler = getattr(self.window().container, item[1], _handler)
+            list_item.handler = getattr(self.window(), item[1], _handler)
             self.categories_list.addItem(list_item)
 
         self.categories_list.setIconSize(QSize(100, 100))
         self.categories_list.itemActivated.connect(self.categories_list.connect)
 
         self.categories_list.item(0).setSelected(True)
+        self.categories_list.setFocus()

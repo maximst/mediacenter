@@ -10,16 +10,61 @@ from PyQt5.QtGui import *
 
 import conf
 
+class Keyboard(QWidget):
+    ru_keys = (
+        ('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', '<x'),
+        ('И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Clear'),
+        ('Р', 'С', 'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', '123'),
+        ('Ш', 'Щ', 'Ъ', 'Ы', 'Ь', 'Э', 'Ю', 'Я', 'En'),
+        ('space', 'Enter'),
+    )
 
-class YouTubeView(object):
+    en_keys = (
+        ('A', 'B', 'C', 'D', 'E', 'F', 'G', '<x'),
+        ('H', 'I', 'J', 'K', 'L', 'M', 'N', 'Clear'),
+        ('O', 'P', 'Q', 'R', 'S', 'T', 'U', '123'),
+        ('V', 'W', 'X', 'Y', 'Z', '-', "'", 'Ru'),
+        ('space', 'Enter'),
+    )
+
+    digital_keys = (
+        ('1', '2', '3', '&', '#', '(', ')', '<x'),
+        ('4', '5', '6', '@', '!', '?', ':', 'Clear'),
+        ('7', '8', '9', '0', '.', '_', '"', 'Ru'),
+        ('space', 'Enter'),
+    )
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.layout = QGridLayout()
+        self.setLayout(self.layout)
+        self.layout.keyPressEvent = self.keyPressEvent
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Down:
+            print(dir(self.layout))
+
+    def show(self, ktype):
+        while self.layout.count():
+            c = self.layout.takeAt(0)
+            c.widget().deleteLater()
+
+        for ri, row in enumerate(getattr(self, '{}_keys'.format(ktype), [])):
+            for ci, col in enumerate(row):
+                btn = QPushButton(col)
+                btn.val = col.lower()
+                self.layout.addWidget(btn, ri, ci)
+
+
+class YouTubeView(QWidget):
     current_focus = 0
     results = []
     rendered = False
+    recs = []
     rec_api = requests.session()
     rec_next = None
     rec_continuation = None
-    rec_row = 0
-    rec_col = 0
+    rec_end = False
     rec_data = {
         "context": {
             "client": {
@@ -46,41 +91,79 @@ class YouTubeView(object):
     }
 
     def __init__(self, parent=None):
-        self.parent = parent
+        super().__init__(parent)
+        #self.parent = parent
         self.search = QLineEdit()
+        self.search.keyPressEvent = self.search_activated
+
         self.results = QListWidget(flow=QListView.LeftToRight)
         self.results.setViewMode(QListView.IconMode)
         self.results.setWrapping(False)
         self.results.setWordWrap(True)
-        self.results.hide()
-        self.layout = QFormLayout()
-        self.layout.setLabelAlignment(Qt.AlignHorizontal_Mask)
-        self.layout.addRow(QLabel("Search"), self.search)
-        self.layout.addRow(self.results)
+
+        self.layout = QVBoxLayout()
+        #self.layout.setLabelAlignment(Qt.AlignHorizontal_Mask)
+
+        self.search_layout = QHBoxLayout()
+        self.search_layout.addWidget(QLabel('Search'))
+        self.search_layout.addWidget(self.search)
+        self.layout.addLayout(self.search_layout)
+
+        self.keyboard_layout = QHBoxLayout()
+        self.keyboard = Keyboard()
+        self.keyboard_layout.addWidget(QListWidget())
+        self.keyboard_layout.addWidget(self.keyboard)
+
+        self.results_layout = QVBoxLayout()
+        self.results_layout.addWidget(QLabel('Results'))
+        self.results_layout.addWidget(self.results)
 
     def render(self):
         print('RENDER')
-        self.parent.setLayout(self.layout)
+        self.setLayout(self.layout)
         self.recomendations()
         self.rendered = True
 
-    def show(self):
-        self.parent.setLayout(self.layout)
+    #def show(self):
+    #    self.setLayout(self.layout)
 
     def setFocus(self):
+        super().setFocus()
         self.current_focus = 1
-        #w = self.layout.takeAt(self.current_focus).widget()
+        w = self.layout.itemAt(self.current_focus).itemAt(1).widget()
+        w.setFocus()
+        self.window().container.ensureWidgetVisible(w, 0, 0)
+        _si = lambda: True
+        not getattr(w, 'selectedItems', _si)() and w.item(0) and w.item(0).setSelected(True)
         #print(self.layout.takeAt(self.current_focus))
        # print(w)
        # w.setFocus()
         #w.setCurrentRow(1)
 
     def keyPressEvent(self, event):
+        print(event.key())
+        w = None
+        _si = lambda: True
         if event.key() == Qt.Key_Down:
-            self.layout.takeAt(self.current_focus+1).widget().setFocus()
+            if self.current_focus >= self.layout.count() - 1 and not self.rec_end:
+                self.recomendations()
+            w = self.layout.itemAt(self.current_focus+1).itemAt(1).widget()
+            w.setFocus()
+
+            if isinstance(w, Keyboard):
+                w.layout.itemAt(0).widget().setFocus()
+
+            not getattr(w, 'selectedItems', _si)() and w.item(0) and w.item(0).setSelected(True)
             self.current_focus += 1
-#            self.parent.window().categories.show()
-#            self.parent.window().categories.categories_list.setFocus()
+        elif event.key() == Qt.Key_Up:
+            w = self.layout.itemAt(self.current_focus-1).itemAt(1).widget()
+            w.setFocus()
+            not getattr(w, 'selectedItems', _si)() and w.item(0) and w.item(0).setSelected(True)
+            self.current_focus -= 1
+        elif event.key() == Qt.Key_Left:
+            self.window().categories.show()
+            self.window().categories.categories_list.setFocus()
+        self.window().container.ensureWidgetVisible(w, 0, 0)
 
     def activate_item(self, item):
         if hasattr(item, 'video_id') and item.video_id:
@@ -89,9 +172,10 @@ class YouTubeView(object):
             self.render_channel(item.channel_id)
 
     def play(self, id):
-        self.parent.window().player.set_url('https://www.youtube.com/watch?v={}'.format(id))
+        self.window().player.set_url('https://www.youtube.com/watch?v={}'.format(id))
         print('Play video', id)
-        self.parent.window().player.play()
+        self.window().player.play()
+        self.window().setFocus()
 
     def render_channel(self, id):
         print('Render channel', id)
@@ -102,6 +186,7 @@ class YouTubeView(object):
         if self.rec_next and self.rec_continuation:
             data['context']['clickTracking'] = {"clickTrackingParams": self.rec_next}
             data['continuation'] = self.rec_continuation
+            data.pop('browseId', None)
         res = self.rec_api.post(url, data=json.dumps(data), headers={'Content-Type': 'application/json'})
         res = res.json()
 
@@ -113,15 +198,15 @@ class YouTubeView(object):
             continuations = res['contents']['sectionListRenderer'].get('continuations', [{}])
 
         for row in content:
-            list_widget = QListWidget(flow=QListView.LeftToRight, height=250)
+            list_widget = QListWidget(flow=QListView.LeftToRight, height=200)
             list_widget.setViewMode(QListView.IconMode)
             list_widget.setWrapping(False)
             list_widget.setWordWrap(True)
             list_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            list_widget.setFixedHeight(250)
+            list_widget.setFixedHeight(200)
+            list_widget.setSelectionMode(QAbstractItemView.SingleSelection)
 
             section = QVBoxLayout()
-
             section_title = row['shelfRenderer'].get('title', '')
             if section_title:
                 section_title = section_title['runs'][0]['text']
@@ -130,10 +215,20 @@ class YouTubeView(object):
             section.addWidget(list_widget)
 
             for col in row['shelfRenderer']['content']['horizontalListRenderer']['items']:
-                is_channel = False
+                if 'gridButtonRenderer' in col:
+                    item = QListWidgetItem(QIcon('img/nav/ontop.png'), 'ON TOP')
+                    item.setTextAlignment(Qt.AlignHCenter | Qt.AlignTop)
+                    item.video_id = None
+                    item.channel_id = None
+                    list_widget.addItem(item)
+                    self.rec_end = True
+                    list_widget.setFocus()
+                    item.setSelected(True)
+                    self.window().container.ensureWidgetVisible(list_widget, 0, 0)
+                    break
+
                 it = col.get('gridVideoRenderer')
                 if not it:
-                    is_channel = True
                     it = col.get('gridChannelRenderer', {})
 
                 thumb = it.get('thumbnail')
@@ -159,9 +254,23 @@ class YouTubeView(object):
                 item.video_id = it.get('videoId')
                 item.channel_id = it.get('channelId')
                 list_widget.addItem(item)
-            list_widget.setIconSize(QSize(90, 120))
+            list_widget.setIconSize(QSize(240, 320))
             list_widget.itemActivated.connect(self.activate_item)
-            self.layout.addRow(section)
+            self.recs.append(section)
+            self.layout.addLayout(section)
         self.rec_next = continuations[0].get('nextContinuationData', {}).get('clickTrackingParams')
         self.rec_continuation = continuations[0].get('nextContinuationData', {}).get('continuation')
 
+    def search_activated(self, event):
+        if event.key() == Qt.Key_Return:
+            while self.layout.count() > 1:
+                c = self.layout.takeAt(1)
+                c.itemAt(0).widget().deleteLater()
+                c.itemAt(1).widget().deleteLater()
+            self.layout.addLayout(self.keyboard_layout)
+            self.keyboard.show('ru')
+            self.keyboard.setFocus()
+            self.keyboard.layout.itemAt(0).widget().setFocus()
+            self.layout.addLayout(self.results_layout)
+        elif event.key() in (Qt.Key_Up, Qt.Key_Right, Qt.Key_Down, Qt.Key_Left):
+            self.keyPressEvent(event)
