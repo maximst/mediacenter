@@ -10,6 +10,28 @@ from PyQt5.QtGui import *
 
 import conf
 
+
+class KeyboardButton(QPushButton):
+    def __init__(self, value):
+        super().__init__(value)
+        self.val = value
+        self.clicked.connect(self._click)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Down, Qt.Key_Up):
+            self.parent().keyPressEvent(event, self)
+        elif event.key() == Qt.Key_Return:
+            self.click_handler(self)
+        else:
+            super().keyPressEvent(event)
+
+    def click_handler(self, btn):
+        raise NotImplementedError
+
+    def _click(self, i):
+        self.click_handler(self)
+
+
 class Keyboard(QWidget):
     ru_keys = (
         ('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', '<x'),
@@ -34,15 +56,21 @@ class Keyboard(QWidget):
         ('space', 'Enter'),
     )
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, input_field=None):
         super().__init__(parent)
         self.layout = QGridLayout()
         self.setLayout(self.layout)
-        self.layout.keyPressEvent = self.keyPressEvent
+        self.input_field = input_field
 
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Down:
-            print(dir(self.layout))
+    def keyPressEvent(self, event, button=None):
+        row_count = self.layout.rowCount()
+        pos = self.layout.getItemPosition(self.layout.indexOf(button))
+        if event.key() == Qt.Key_Down and pos[0] < row_count - 1:
+            self.layout.itemAtPosition(pos[0]+1, pos[1]).widget().setFocus()
+        elif event.key() == Qt.Key_Up and pos[0]:
+            self.layout.itemAtPosition(pos[0]-1, pos[1]).widget().setFocus()
+        elif event.key() == Qt.Key_Left and not pos[1]:
+            self.parent().keyPressEvent(event)
 
     def show(self, ktype):
         while self.layout.count():
@@ -51,9 +79,19 @@ class Keyboard(QWidget):
 
         for ri, row in enumerate(getattr(self, '{}_keys'.format(ktype), [])):
             for ci, col in enumerate(row):
-                btn = QPushButton(col)
-                btn.val = col.lower()
+                btn = KeyboardButton(col)
+                btn.click_handler = self.handle_button
                 self.layout.addWidget(btn, ri, ci)
+
+    def handle_button(self, btn):
+        if len(btn.val) == 1 or btn.val.lower() == 'space':
+            self.input_field.insert(btn.val.lower() == 'space' and ' ' or btn.val)
+        elif btn.val.lower() in ('en', 'ru', '123'):
+            self.show(btn.val == '123' and 'digital' or btn.val.lower())
+        elif btn.val == '<x':
+            self.input_field.backspace()
+        elif btn.val.lower() == 'clear':
+            self.input_field.del_()
 
 
 class YouTubeView(QWidget):
@@ -110,7 +148,7 @@ class YouTubeView(QWidget):
         self.layout.addLayout(self.search_layout)
 
         self.keyboard_layout = QHBoxLayout()
-        self.keyboard = Keyboard()
+        self.keyboard = Keyboard(input_field = self.search)
         self.keyboard_layout.addWidget(QListWidget())
         self.keyboard_layout.addWidget(self.keyboard)
 
