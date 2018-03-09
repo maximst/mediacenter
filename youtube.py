@@ -172,6 +172,8 @@ class YouTubeView(QWidget):
         self.results.setViewMode(QListView.IconMode)
         self.results.setWrapping(False)
         self.results.setWordWrap(True)
+        self.results.setIconSize(QSize(240, 320))
+        self.results.itemActivated.connect(self.activate_item)
 
         self.layout = QVBoxLayout()
         #self.layout.setLabelAlignment(Qt.AlignHorizontal_Mask)
@@ -390,14 +392,6 @@ class YouTubeView(QWidget):
 
     def render_row_result(self, row):
         items = []
-        list_widget = QListWidget(flow=QListView.LeftToRight, height=350)
-        list_widget.setViewMode(QListView.IconMode)
-        list_widget.setWrapping(False)
-        list_widget.setWordWrap(True)
-        list_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        list_widget.setFixedHeight(350)
-        list_widget.setSelectionMode(QAbstractItemView.SingleSelection)
-        list_widget.setIconSize(QSize(240, 320))
 
         for col in row:
             if 'gridButtonRenderer' in col:
@@ -405,16 +399,19 @@ class YouTubeView(QWidget):
                 item.setTextAlignment(Qt.AlignHCenter | Qt.AlignTop)
                 item.video_id = None
                 item.channel_id = None
-                list_widget.addItem(item)
+                items.append(item)
                 self.rec_end = True
-                list_widget.setFocus()
                 item.setSelected(True)
-                self.window().container.ensureWidgetVisible(list_widget, 0, 0)
                 break
 
             it = col.get('gridVideoRenderer')
             if not it:
-                it = col.get('gridChannelRenderer', {})
+                it = col.get('gridChannelRenderer')
+            if not it:
+                it = col.get('compactVideoRenderer', {})
+
+            if not it:
+                continue
 
             thumb = it.get('thumbnail')
             filepath = 'img/youtube_default.png'
