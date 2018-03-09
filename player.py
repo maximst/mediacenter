@@ -19,12 +19,13 @@ class Player(object):
             ytdl=True,
             vo=conf.MPV_VO,
             log_handler=print,
-            save_position_on_quit=True
+            #watch_later_directory='~/.config/mpv/watch_later'
         )
         self._player.play(self.url)
         self.is_playing = True
 
     def stop(self):
+        self._player.quit_watch_later(0)
         self._player.terminate()
         self.is_playing = False
 
