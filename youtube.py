@@ -172,7 +172,7 @@ class YouTubeView(QWidget):
         self.results.setViewMode(QListView.IconMode)
         self.results.setWrapping(False)
         self.results.setWordWrap(True)
-        self.results.setIconSize(QSize(240, 320))
+        self.results.setIconSize(QSize(360, 480))
         self.results.itemActivated.connect(self.activate_item)
 
         self.layout = QVBoxLayout()
@@ -291,56 +291,19 @@ class YouTubeView(QWidget):
 
             section.addWidget(QLabel(section_title))
 
-            list_widget = QListWidget(flow=QListView.LeftToRight, height=350)
+            list_widget = QListWidget(flow=QListView.LeftToRight)
             list_widget.setViewMode(QListView.IconMode)
             list_widget.setWrapping(False)
             list_widget.setWordWrap(True)
             list_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            list_widget.setFixedHeight(350)
+            list_widget.setFixedHeight(400)
             list_widget.setSelectionMode(QAbstractItemView.SingleSelection)
-            list_widget.setIconSize(QSize(240, 320))
+            list_widget.setIconSize(QSize(360, 480))
 
-            for col in row['shelfRenderer']['content']['horizontalListRenderer']['items']:
-                if 'gridButtonRenderer' in col:
-                    item = QListWidgetItem(QIcon('img/nav/ontop.png'), 'ON TOP')
-                    item.setTextAlignment(Qt.AlignHCenter | Qt.AlignTop)
-                    item.video_id = None
-                    item.channel_id = None
-                    list_widget.addItem(item)
-                    self.rec_end = True
-                    list_widget.setFocus()
-                    item.setSelected(True)
-                    self.window().container.ensureWidgetVisible(list_widget, 0, 0)
-                    break
-
-                it = col.get('gridVideoRenderer')
-                if not it:
-                    it = col.get('gridChannelRenderer', {})
-
-                thumb = it.get('thumbnail')
-                filepath = 'img/youtube_default.png'
-                if thumb:
-                    thumb = thumb['thumbnails'][0]['url']
-                    url = not thumb.startswith('http') and 'https:{}'.format(thumb) or thumb
-                    filepath = 'cache/{}'.format(thumb.replace('/', '_'))
-                    if not os.path.isfile(filepath):
-                        urllib.request.urlretrieve(url, filepath)
-
-                title = it['title']['runs'][0]['text'][:32]
-                if len(title) < len(it['title']['runs'][0]['text']):
-                    title += '...'
-
-                badges = it.get('badges')
-                mode = ''
-                if badges:
-                    mode = '[{}] '.format(badges[0]['textBadge']['label']['runs'][0]['text'])
-
-                item = QListWidgetItem(QIcon(filepath), '{}{}'.format(mode, title))
-                item.setTextAlignment(Qt.AlignHCenter | Qt.AlignTop)
-                item.video_id = it.get('videoId')
-                item.channel_id = it.get('channelId')
+            items = self.render_row_result(row['shelfRenderer']['content']['horizontalListRenderer']['items'])
+            for item in items:
                 list_widget.addItem(item)
-            list_widget.setIconSize(QSize(240, 320))
+
             list_widget.itemActivated.connect(self.activate_item)
             section.addWidget(list_widget)
             self.recs.append(section)
@@ -416,11 +379,13 @@ class YouTubeView(QWidget):
             thumb = it.get('thumbnail')
             filepath = 'img/youtube_default.png'
             if thumb:
-                thumb = thumb['thumbnails'][0]['url']
+                thumbs = thumb['thumbnails']
+                thumb = thumbs[-1]['url']
                 url = not thumb.startswith('http') and 'https:{}'.format(thumb) or thumb
                 filepath = 'cache/{}'.format(thumb.replace('/', '_'))
                 if not os.path.isfile(filepath):
                     urllib.request.urlretrieve(url, filepath)
+                    os.system('convert {} -resize 480x360 {}'.format(filepath, filepath))
 
             title = it['title']['runs'][0]['text'][:32]
             if len(title) < len(it['title']['runs'][0]['text']):

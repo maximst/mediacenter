@@ -81,7 +81,7 @@ win.setStyleSheet("""
     QWidget, QMainWindow {
         background-color: rgba(50,50,50, 1);
         color: #fff;
-        font-size: 32pt;
+        font-size: 22pt;
     }
     QWidget:item:selected {
         background-color: rgba(100,100,100, 0.5);
