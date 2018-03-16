@@ -1,7 +1,9 @@
 import os
 import json
+import pickle
 import urllib
 import requests
+from multiprocessing import Pool
 from pprint import pprint
 
 from PyQt5.QtWidgets import *
@@ -9,6 +11,16 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
 import conf
+
+
+def cache_image(f):
+    if not f[0]:
+        return f[1]
+
+    if not os.path.isfile(f[1]):
+        urllib.request.urlretrieve(*f)
+        os.system('convert {} -resize 480x360 {}'.format(f[1], f[1]))
+    return f[1]
 
 
 class KeyboardButton(QPushButton):
@@ -119,11 +131,11 @@ class KeyboardTips(QListWidget):
 
 
 class YouTubeView(QWidget):
+    api = requests.session()
     current_focus = 0
     results = []
     rendered = False
     recs = []
-    api = requests.session()
     rec_next = None
     rec_continuation = None
     rec_end = False
@@ -162,6 +174,10 @@ class YouTubeView(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        if os.path.isfile('cache/cookies'):
+            with open('cache/cookies', 'rb') as f:
+                self.api.cookies = requests.utils.cookiejar_from_dict(pickle.load(f))
+
         #self.parent = parent
         self.search = QLineEdit()
         self.search.keyPressEvent = self.search_activated
@@ -198,6 +214,20 @@ class YouTubeView(QWidget):
         self.setLayout(self.layout)
         self.recomendations()
         self.rendered = True
+
+    def get(self, *args, **kwargs):
+        kwargs['headers'] = {'Content-Type': 'application/json'}
+        res = self.api.get(*args, **kwargs)
+        with open('cache/cookies', 'wb+') as f:
+            pickle.dump(requests.utils.dict_from_cookiejar(self.api.cookies), f)
+        return res
+
+    def post(self, *args, **kwargs):
+        kwargs['headers'] = {'Content-Type': 'application/json'}
+        res = self.api.post(*args, **kwargs)
+        with open('cache/cookies', 'wb+') as f:
+            pickle.dump(requests.utils.dict_from_cookiejar(self.api.cookies), f)
+        return res
 
     #def show(self):
     #    self.setLayout(self.layout)
@@ -273,7 +303,7 @@ class YouTubeView(QWidget):
             data['context']['clickTracking'] = {"clickTrackingParams": self.rec_next}
             data['continuation'] = self.rec_continuation
             data.pop('browseId', None)
-        res = self.api.post(url, data=json.dumps(data), headers={'Content-Type': 'application/json'})
+        res = self.post(url, data=json.dumps(data))
         res = res.json()
 
         if self.rec_next and self.rec_continuation:
@@ -330,8 +360,7 @@ class YouTubeView(QWidget):
     def tips_update(self):
         data = self.search_tips_data.copy()
         data['q'] = self.search.text()
-        res = self.api.get(conf.YOUTUBE_SEARCH_TIPS_API, params=data,
-                           headers={'Content-Type': 'application/json'})
+        res = self.get(conf.YOUTUBE_SEARCH_TIPS_API, params=data)
         if res.ok:
             while self.keyboard_tips.count():
                 self.keyboard_tips.takeItem(0)
@@ -342,7 +371,7 @@ class YouTubeView(QWidget):
         url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'search', conf.YOUTUBE_API_KEY)
         data = self.api_data.copy()
         data['query'] = self.search.text()
-        res = self.api.post(url, data=json.dumps(data), headers={'Content-Type': 'application/json'})
+        res = self.post(url, data=json.dumps(data))
         res = res.json()
         contents = res['contents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']['contents']
         self.set_results(self.render_row_result(contents))
@@ -356,7 +385,9 @@ class YouTubeView(QWidget):
     def render_row_result(self, row):
         items = []
 
-        for col in row:
+        images = self.cache_images(row)
+
+        for i, col in enumerate(row):
             if 'gridButtonRenderer' in col:
                 item = QListWidgetItem(QIcon('img/nav/ontop.png'), 'ON TOP')
                 item.setTextAlignment(Qt.AlignHCenter | Qt.AlignTop)
@@ -376,17 +407,6 @@ class YouTubeView(QWidget):
             if not it:
                 continue
 
-            thumb = it.get('thumbnail')
-            filepath = 'img/youtube_default.png'
-            if thumb:
-                thumbs = thumb['thumbnails']
-                thumb = thumbs[-1]['url']
-                url = not thumb.startswith('http') and 'https:{}'.format(thumb) or thumb
-                filepath = 'cache/{}'.format(thumb.replace('/', '_'))
-                if not os.path.isfile(filepath):
-                    urllib.request.urlretrieve(url, filepath)
-                    os.system('convert {} -resize 480x360 {}'.format(filepath, filepath))
-
             title = it['title']['runs'][0]['text'][:32]
             if len(title) < len(it['title']['runs'][0]['text']):
                 title += '...'
@@ -396,9 +416,38 @@ class YouTubeView(QWidget):
             if badges:
                 mode = '[{}] '.format(badges[0]['textBadge']['label']['runs'][0]['text'])
 
-            item = QListWidgetItem(QIcon(filepath), '{}{}'.format(mode, title))
+            try:
+                item = QListWidgetItem(QIcon(images[i]), '{}{}'.format(mode, title))
+            except IndexError as e:
+                item = QListWidgetItem(QIcon('img/youtube_default.png'), '{}{}'.format(mode, title))
+                print(i, images)
             item.setTextAlignment(Qt.AlignHCenter | Qt.AlignTop)
             item.video_id = it.get('videoId')
             item.channel_id = it.get('channelId')
             items.append(item)
         return items
+
+    def cache_images(self, row):
+        images = []
+        pool = Pool(processes=16)
+        for col in row:
+            it = col.get('gridVideoRenderer')
+            if not it:
+                it = col.get('gridChannelRenderer')
+            if not it:
+                it = col.get('compactVideoRenderer', {})
+
+            if not it:
+                continue
+
+            thumb = it.get('thumbnail')
+            if thumb:
+                thumbs = thumb['thumbnails']
+                thumb = thumbs[-1]['url']
+                url = not thumb.startswith('http') and 'https:{}'.format(thumb) or thumb
+                filepath = 'cache/{}'.format(thumb.replace('/', '_'))
+                images.append((url, filepath))
+            else:
+                filepath = 'img/youtube_default.png'
+                images.append((None, filepath))
+        return pool.map(cache_image, images)
