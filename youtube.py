@@ -202,6 +202,7 @@ class YouTubeView(QWidget):
         self.keyboard_layout = QHBoxLayout()
         self.keyboard = Keyboard(input_field=self.search)
         self.keyboard_tips = KeyboardTips()
+        self.keyboard_tips.itemActivated.connect(self.set_search_from_tip)
         self.keyboard_layout.addWidget(self.keyboard_tips)
         self.keyboard_layout.addWidget(self.keyboard)
 
@@ -375,6 +376,11 @@ class YouTubeView(QWidget):
         res = res.json()
         contents = res['contents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']['contents']
         self.set_results(self.render_row_result(contents))
+
+    def set_search_from_tip(self, item):
+        self.search.clear()
+        self.search.insert(item.text())
+        self.search.submit()
 
     def set_results(self, items):
         while self.results.count():
