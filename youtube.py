@@ -376,6 +376,8 @@ class YouTubeView(QWidget):
         res = res.json()
         contents = res['contents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']['contents']
         self.set_results(self.render_row_result(contents))
+        self.results.setFocus()
+        self.results.item(0).setSelected(True)
 
     def set_search_from_tip(self, item):
         self.search.clear()
