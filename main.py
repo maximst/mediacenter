@@ -38,7 +38,16 @@ class Main(QMainWindow):
         self.addDockWidget(Qt.LeftDockWidgetArea, self.categories, Qt.Vertical)
         self.categories.setFocus()
 
-        self.player = Player(str(int(self.container.winId())))
+        self.play_control = QDockWidget()
+#        self.play_control.setLayout(QVBoxLayout())
+#        self.play_control.layout().setContentsMargins(0, 0, 0, 0)
+#        self.play_control.layout().setSpacing(0)
+#        self.play_control.setFixedHeight(50)
+#        self.play_control.setAllowedAreas(Qt.BottomDockWidgetArea)
+#        self.play_control.setFeatures(self.play_control.NoDockWidgetFeatures)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.play_control)
+
+        self.player = Player(str(int(self.container.winId())), self.play_control)
 
         #player = mpv.MPV(wid=str(int(self.container.winId())),
         #        vo='vdpau', # You may not need this
@@ -65,8 +74,13 @@ class Main(QMainWindow):
         if event.key() == Qt.Key_Right and self.current_view.rendered:
             self._show_view(self.current_view)
         elif event.key() == Qt.Key_Escape and self.player.is_playing:
-            self.player.stop()
-            self.setCentralWidget(self.container)
+            if not self.play_control.isHidden():
+                self.play_control.hide()
+            else:
+                self.player.stop()
+                #self.setCentralWidget(self.container)
+        elif event.key() == Qt.Key_Return and self.player.is_playing:
+            self.play_control.show()
         super().keyPressEvent(event)
 
 

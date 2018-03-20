@@ -30,15 +30,12 @@ class KeyboardButton(QPushButton):
         self.clicked.connect(self._click)
 
     def keyPressEvent(self, event):
-        if event.key() in (Qt.Key_Down, Qt.Key_Up, Qt.Key_Left):
+        if event.key() in (Qt.Key_Down, Qt.Key_Up, Qt.Key_Left, Qt.Key_Right):
             self.parent().keyPressEvent(event, self)
         elif event.key() == Qt.Key_Return:
             self.click_handler(self)
         else:
             super().keyPressEvent(event)
-
-    def keyPressEventSuper(self, event):
-        super().keyPressEvent(event)
 
     def click_handler(self, btn):
         raise NotImplementedError
@@ -48,6 +45,8 @@ class KeyboardButton(QPushButton):
 
 
 class Keyboard(QWidget):
+    position = [0, 0]
+
     ru_keys = (
         ('А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', '<x'),
         ('И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Clear'),
@@ -79,23 +78,38 @@ class Keyboard(QWidget):
 
     def keyPressEvent(self, event, button=None):
         row_count = self.layout.rowCount()
+        cols_count = self.layout.columnCount()
         pos = self.layout.getItemPosition(self.layout.indexOf(button))
         if event.key() == Qt.Key_Down:
             if pos[0] < row_count - 1:
                 item = self.layout.itemAtPosition(pos[0]+1, pos[1])
                 if item:
                     item.widget().setFocus()
+                    self.position[0] = pos[0]+1
                 else:
                     self.layout.itemAtPosition(pos[0]+1, 1).widget().setFocus()
+                    self.position = [pos[0]+1, 1]
             else:
                 self.parent().keyPressEvent(event, self)
         elif event.key() == Qt.Key_Up and pos[0]:
             self.layout.itemAtPosition(pos[0]-1, pos[1]).widget().setFocus()
+            self.position[0] = pos[0]-1
         elif event.key() == Qt.Key_Left:
             if pos[1]:
-                button.keyPressEventSuper(event)
+                self.layout.itemAtPosition(pos[0], pos[1]-1).widget().setFocus()
+                self.position[1] = pos[1]-1
             else:
                 self.parent().keyPressEvent(event, self)
+        elif event.key() == Qt.Key_Right:
+            if pos[1] < cols_count - 1:
+                self.layout.itemAtPosition(pos[0], pos[1]+1).widget().setFocus()
+                self.position[1] = pos[1]+1
+            else:
+                self.parent().keyPressEvent(event, self)
+
+    def setFocus(self):
+        super().setFocus()
+        self.layout.itemAtPosition(*self.position).widget().setFocus()
 
     def show(self, ktype):
         while self.layout.count():
@@ -256,18 +270,12 @@ class YouTubeView(QWidget):
             w = self.layout.itemAt(self.current_focus+1).itemAt(1).widget()
             w.setFocus()
 
-            if isinstance(w, Keyboard):
-                w.layout.itemAt(0).widget().setFocus()
-
             not getattr(w, 'selectedItems', _si)() and w.item(0) and w.item(0).setSelected(True)
             self.current_focus += 1
         elif event.key() == Qt.Key_Up:
             w = self.layout.itemAt(self.current_focus-1).itemAt(1).widget()
             w.setFocus()
             not getattr(w, 'selectedItems', _si)() and w.item(0) and w.item(0).setSelected(True)
-
-            if isinstance(w, Keyboard):
-                w.layout.itemAt(0).widget().setFocus()
 
             self.current_focus -= 1
         elif event.key() == Qt.Key_Left:
@@ -279,7 +287,6 @@ class YouTubeView(QWidget):
         elif event.key() == Qt.Key_Right:
             if elem == self.keyboard_tips:
                 self.keyboard.setFocus()
-                self.keyboard.layout.itemAt(0).widget().setFocus()
         self.window().container.ensureWidgetVisible(w, 0, 0)
 
     def activate_item(self, item):
@@ -291,7 +298,11 @@ class YouTubeView(QWidget):
     def play(self, id):
         self.window().player.set_url('https://www.youtube.com/watch?v={}'.format(id))
         print('Play video', id)
+        self.window().player.playlist = (
+            ('https://www.youtube.com/watch?v={}'.format(id), id, 'cache/__i.ytimg.com_vi__Nc4boa2a4g_maxresdefault.jpg'),
+        )
         self.window().player.play()
+        print(self.window().player.playlist)
         self.window().setFocus()
 
     def render_channel(self, id):
