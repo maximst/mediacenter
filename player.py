@@ -23,6 +23,8 @@ class ControlButton(QPushButton):
         super().keyPressEvent(event)
         if event.key() == Qt.Key_Return:
             self.click()
+        elif event.key() == Qt.Key_Down:
+            self.parent().down_navigate()
 
 
 class Player(object):
@@ -38,6 +40,8 @@ class Player(object):
         self.win_id = winid
         self.control = control
         self.set_controls()
+
+    def setup_player(self):
         self._player = mpv.MPV(
             wid=self.win_id,
             ytdl=True,
@@ -45,9 +49,6 @@ class Player(object):
             log_handler=print,
             #watch_later_directory='~/.config/mpv/watch_later'
         )
-
-    def set_url(self, url):
-        self.url = url
 
     def set_controls(self):
         self.control.setWidget(QWidget())
@@ -80,9 +81,12 @@ class Player(object):
         self.playlist_ctrl.setViewMode(QListView.IconMode)
         self.playlist_ctrl.setWrapping(False)
         self.playlist_ctrl.setWordWrap(True)
-        self.playlist_ctrl.setIconSize(QSize(128, 128))
+        self.playlist_ctrl.setIconSize(QSize(240, 320))
+
+        self.buttons.down_navigate = lambda: self.playlist_ctrl.setFocus()
+
         self.control.widget().layout().addWidget(self.playlist_ctrl)
-        #self.control.hide()
+        self.control.hide()
 
     def stop(self):
         self._player.quit_watch_later(0)
@@ -94,8 +98,20 @@ class Player(object):
         self.is_paused = True
 
     def play(self):
-        self._player.playlist_pos = 0
-        self._player.wait_for_playback()
+        try:
+            self.url = self.playlist[self.current_index][0]
+        except KeyError:
+            return False
+        else:
+            self.is_playing and self.stop()
+            self.setup_player()
+            self._player.play(self.url)
+            self.select_current()
+            self.is_playing = True
+            return True
+
+    def select_current(self):
+        self.playlist_ctrl.item(self.current_index).setSelected(True)
 
     @property
     def playlist(self):
@@ -103,29 +119,24 @@ class Player(object):
 
     @playlist.setter
     def playlist(self, value):
-        if not self._player:
-            self._player = mpv.MPV(
-                wid=self.win_id,
-                ytdl=True,
-                vo=conf.MPV_VO,
-                log_handler=print,
-                #watch_later_directory='~/.config/mpv/watch_later'
-            )
+        self.current_index = 0
         self._playlist = value
-        self._player.playlist_clear()
 
         while self.playlist_ctrl.count():
             self.playlist_ctrl.takeItem(0)
 
         for row in value:
-            self._player.playlist_append(row[0])
             self.playlist_ctrl.addItem(QListWidgetItem(QIcon(row[2]), row[1]))
 
     def next_play(self, btn):
-        self._player.playlist_next()
+        if self.current_index < len(self.playlist) - 1:
+            self.current_index += 1
+            self.play()
 
     def prev_play(self, btn):
-        self._player.playlist_prev()
+        if self.current_index:
+            self.current_index -= 1
+            self.play()
 
     def play_pause(self, btn):
         if self.is_paused:

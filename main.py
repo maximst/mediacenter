@@ -69,18 +69,22 @@ class Main(QMainWindow):
         self._show_view(self.youtube)
 
     def keyPressEvent(self, event):
-        if self.current_view:
-            self.current_view.keyPressEvent(event)
         if event.key() == Qt.Key_Right and self.current_view.rendered:
             self._show_view(self.current_view)
         elif event.key() == Qt.Key_Escape and self.player.is_playing:
             if not self.play_control.isHidden():
                 self.play_control.hide()
+                self.container.setFocus()
             else:
                 self.player.stop()
                 #self.setCentralWidget(self.container)
         elif event.key() == Qt.Key_Return and self.player.is_playing:
             self.play_control.show()
+            self.player.play_btn.setFocus()
+
+        if self.current_view:
+            self.current_view.keyPressEvent(event)
+
         super().keyPressEvent(event)
 
 

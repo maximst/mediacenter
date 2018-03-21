@@ -296,13 +296,12 @@ class YouTubeView(QWidget):
             self.render_channel(item.channel_id)
 
     def play(self, id):
-        self.window().player.set_url('https://www.youtube.com/watch?v={}'.format(id))
         print('Play video', id)
         self.window().player.playlist = (
             ('https://www.youtube.com/watch?v={}'.format(id), id, 'cache/__i.ytimg.com_vi__Nc4boa2a4g_maxresdefault.jpg'),
+            ('https://www.youtube.com/watch?v={}'.format('ltbXhZtkV90'), 'Городок', 'cache/__i.ytimg.com_vi__Nc4boa2a4g_maxresdefault.jpg'),
         )
         self.window().player.play()
-        print(self.window().player.playlist)
         self.window().setFocus()
 
     def render_channel(self, id):
