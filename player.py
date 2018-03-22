@@ -20,11 +20,42 @@ class ControlButton(QPushButton):
         self.click_handler(self)
 
     def keyPressEvent(self, event):
-        super().keyPressEvent(event)
         if event.key() == Qt.Key_Return:
             self.click()
         elif event.key() == Qt.Key_Down:
             self.parent().down_navigate()
+        elif event.key() == Qt.Key_Up:
+            return
+        elif event.key() == Qt.Key_Left:
+            self.parent().left_navigate(self)
+        elif event.key() == Qt.Key_Right:
+            self.parent().right_navigate(self)
+        else:
+            super().keyPressEvent(event)
+
+
+class Playlist(QListWidget):
+    def __init__(self, *args, **kwargs):
+        self.playlist_up = kwargs.pop('playlist_up', self.playlist_up)
+        kwargs['flow'] = QListView.LeftToRight
+
+        super().__init__(*args, **kwargs)
+
+        self.setViewMode(QListView.IconMode)
+        self.setWrapping(False)
+        self.setWordWrap(True)
+        self.setIconSize(QSize(240, 320))
+
+    def playlist_up(self):
+        raise NotImplementedError
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Up:
+            self.playlist_up()
+        elif event.key() == Qt.Key_Down:
+            return
+        else:
+            super().keyPressEvent(event)
 
 
 class Player(object):
@@ -77,16 +108,24 @@ class Player(object):
 
         self.control.widget().layout().addWidget(self.buttons)
 
-        self.playlist_ctrl = QListWidget(flow=QListView.LeftToRight)
-        self.playlist_ctrl.setViewMode(QListView.IconMode)
-        self.playlist_ctrl.setWrapping(False)
-        self.playlist_ctrl.setWordWrap(True)
-        self.playlist_ctrl.setIconSize(QSize(240, 320))
+        self.playlist_ctrl = Playlist(playlist_up=self.playlist_up)
 
         self.buttons.down_navigate = lambda: self.playlist_ctrl.setFocus()
+        self.buttons.left_navigate = lambda b: self.buttons_nav('left', b)
+        self.buttons.right_navigate = lambda b: self.buttons_nav('right', b)
 
         self.control.widget().layout().addWidget(self.playlist_ctrl)
         self.control.hide()
+
+    def playlist_up(self):
+        self.play_btn.setFocus()
+
+    def buttons_nav(self, direction, btn):
+        index = self.buttons.layout.indexOf(btn)
+        if direction == 'left' and index:
+            self.buttons.layout.itemAt(index-1).widget().setFocus()
+        elif direction == 'right' and index < self.buttons.layout.count():
+            self.buttons.layout.itemAt(index+1).widget().setFocus()
 
     def stop(self):
         self._player.quit_watch_later(0)

@@ -291,16 +291,42 @@ class YouTubeView(QWidget):
 
     def activate_item(self, item):
         if hasattr(item, 'video_id') and item.video_id:
-            self.play(item.video_id)
+            self.play(item.video_id, item.playlist_id, item.title, item.img)
         elif hasattr(item, 'channel_id') and item.channel_id:
             self.render_channel(item.channel_id)
 
-    def play(self, id):
-        print('Play video', id)
-        self.window().player.playlist = (
-            ('https://www.youtube.com/watch?v={}'.format(id), id, 'cache/__i.ytimg.com_vi__Nc4boa2a4g_maxresdefault.jpg'),
-            ('https://www.youtube.com/watch?v={}'.format('ltbXhZtkV90'), 'Городок', 'cache/__i.ytimg.com_vi__Nc4boa2a4g_maxresdefault.jpg'),
-        )
+    def play(self, video_id, playlist_id, title, img):
+        data = self.api_data.copy()
+        data.pop('browseId', None)
+        data.update({
+            'contentCheckOk': True,
+            'racyCheckOk': True,
+            'playlistId': playlist_id,
+            'videoId': video_id
+        })
+
+        url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'next', conf.YOUTUBE_API_KEY)
+        res = self.post(url, data=json.dumps(data))
+        res = res.json()
+        cont = res['contents']['singleColumnWatchNextResults']['pivot']['pivot']
+        cont = cont['contents'][0]['pivotShelfRenderer']['content']
+        plst = cont['pivotHorizontalListRenderer']
+        playlist = [['https://www.youtube.com/watch?v={}'.format(video_id), title, img]]
+        rows = []
+
+        for row in plst['items']:
+            r = row.get('pivotVideoRenderer')
+            if r:
+                url = 'https://www.youtube.com/watch?v={}'.format(r['videoId'])
+                playlist.append([url, r['title']['runs'][0]['text'], None])
+                rows.append(row)
+
+        images = self.cache_images(rows)
+        for i, img in enumerate(images):
+            playlist[i+1][2] = img
+
+        self.window().player.playlist = playlist
+        self.window().player.current_index = plst.get('selectedIndex', 0)
         self.window().player.play()
         self.window().setFocus()
 
@@ -436,12 +462,17 @@ class YouTubeView(QWidget):
 
             try:
                 item = QListWidgetItem(QIcon(images[i]), '{}{}'.format(mode, title))
+                img = images[i]
             except IndexError as e:
                 item = QListWidgetItem(QIcon('img/youtube_default.png'), '{}{}'.format(mode, title))
+                img = 'img/youtube_default.png'
                 print(i, images)
             item.setTextAlignment(Qt.AlignHCenter | Qt.AlignTop)
             item.video_id = it.get('videoId')
             item.channel_id = it.get('channelId')
+            item.playlist_id = it.get('navigationEndpoint', {}).get('watchEndpoint', {}).get('playlistId')
+            item.title = title
+            item.img = img
             items.append(item)
         return items
 
@@ -452,6 +483,8 @@ class YouTubeView(QWidget):
             it = col.get('gridVideoRenderer')
             if not it:
                 it = col.get('gridChannelRenderer')
+            if not it:
+                it = col.get('pivotVideoRenderer')
             if not it:
                 it = col.get('compactVideoRenderer', {})
 
