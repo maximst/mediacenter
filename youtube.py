@@ -18,8 +18,11 @@ def cache_image(f):
         return f[1]
 
     if not os.path.isfile(f[1]):
-        urllib.request.urlretrieve(*f)
-        os.system('convert {} -resize 480x360 {}'.format(f[1], f[1]))
+        try:
+            urllib.request.urlretrieve(*f)
+            os.system('convert {} -resize 480x360 {}'.format(f[1], f[1]))
+        except Exception:
+            return 'img/youtube_default.png'
     return f[1]
 
 
@@ -293,7 +296,7 @@ class YouTubeView(QWidget):
         if hasattr(item, 'video_id') and item.video_id:
             self.play(item.video_id, item.playlist_id, item.title, item.img)
         elif hasattr(item, 'channel_id') and item.channel_id:
-            self.render_channel(item.channel_id)
+            self.render_channel(item.channel_id, item.tracking_params)
 
     def play(self, video_id, playlist_id, title, img):
         data = self.api_data.copy()
@@ -330,26 +333,33 @@ class YouTubeView(QWidget):
         self.window().player.play()
         self.window().setFocus()
 
-    def render_channel(self, id):
+    def render_channel(self, id, tracking_params):
+        self.setFocus()
+        self.clear_results()
+        self.recomendations(browse_id=id, tracking_params=tracking_params)
         print('Render channel', id)
 
-    def recomendations(self):
+    def recomendations(self, browse_id=None, tracking_params=None):
         url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'browse', conf.YOUTUBE_API_KEY)
         data = self.api_data.copy()
-        if self.rec_next and self.rec_continuation:
+        data['browseId'] = browse_id or 'default'
+        if tracking_params:
+            data['context']['clickTracking'] = {"clickTrackingParams": tracking_params}
+        elif self.rec_next and self.rec_continuation:
             data['context']['clickTracking'] = {"clickTrackingParams": self.rec_next}
             data['continuation'] = self.rec_continuation
-            data.pop('browseId', None)
+            #data.pop('browseId', None)
         res = self.post(url, data=json.dumps(data))
         res = res.json()
 
-        if self.rec_next and self.rec_continuation:
+        if self.rec_next and self.rec_continuation and 'continuationContents' in res:
             content = res['continuationContents']['sectionListContinuation']['contents']
             continuations = res['continuationContents']['sectionListContinuation'].get('continuations', [{}])
         else:
             content = res['contents']['sectionListRenderer']['contents']
             continuations = res['contents']['sectionListRenderer'].get('continuations', [{}])
 
+        first_w = None
         for row in content:
             section = QVBoxLayout()
             section_title = row['shelfRenderer'].get('title', '')
@@ -375,15 +385,14 @@ class YouTubeView(QWidget):
             section.addWidget(list_widget)
             self.recs.append(section)
             self.layout.addLayout(section)
+            first_w = not first_w and list_widget or first_w
         self.rec_next = continuations[0].get('nextContinuationData', {}).get('clickTrackingParams')
         self.rec_continuation = continuations[0].get('nextContinuationData', {}).get('continuation')
+        self.window().container.ensureWidgetVisible(first_w, 0, 0)
 
     def search_activated(self, event):
         if event.key() == Qt.Key_Return:
-            while self.layout.count() > 1:
-                c = self.layout.takeAt(1)
-                c.itemAt(0).widget().deleteLater()
-                c.itemAt(1).widget().deleteLater()
+            self.clear_results()
             self.layout.addLayout(self.keyboard_layout)
             self.keyboard.show('ru')
             self.keyboard.setFocus()
@@ -393,6 +402,12 @@ class YouTubeView(QWidget):
             self.tips_update()
         elif event.key() in (Qt.Key_Up, Qt.Key_Right, Qt.Key_Down, Qt.Key_Left):
             self.keyPressEvent(event)
+
+    def clear_results(self):
+        while self.layout.count() > 1:
+            c = self.layout.takeAt(1)
+            c.itemAt(0).widget().deleteLater()
+            c.itemAt(1).widget().deleteLater()
 
     def tips_update(self):
         data = self.search_tips_data.copy()
@@ -470,6 +485,7 @@ class YouTubeView(QWidget):
             item.setTextAlignment(Qt.AlignHCenter | Qt.AlignTop)
             item.video_id = it.get('videoId')
             item.channel_id = it.get('channelId')
+            item.tracking_params = it.get('trackingParams')
             item.playlist_id = it.get('navigationEndpoint', {}).get('watchEndpoint', {}).get('playlistId')
             item.title = title
             item.img = img
@@ -489,6 +505,8 @@ class YouTubeView(QWidget):
                 it = col.get('compactVideoRenderer', {})
 
             if not it:
+                filepath = 'img/youtube_default.png'
+                images.append((None, filepath))
                 continue
 
             thumb = it.get('thumbnail')
