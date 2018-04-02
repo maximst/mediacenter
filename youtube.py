@@ -19,8 +19,15 @@ def cache_image(f):
 
     if not os.path.isfile(f[1]):
         try:
-            urllib.request.urlretrieve(*f)
-            os.system('convert {} -resize 480x360 {}'.format(f[1], f[1]))
+            urllib.request.urlretrieve(*f[:2])
+            if f[2][1] != 360:
+                w = 480
+                h = 360
+                if f[2][0] == f[2][1]:
+                    w = 256
+                    h = 256
+                size = '{}x{}'.format(w, h)
+                os.system('convert {} -resize {} {}'.format(f[1], size, f[1]))
         except Exception:
             return 'img/youtube_default.png'
     return f[1]
@@ -147,6 +154,33 @@ class KeyboardTips(QListWidget):
             super().keyPressEvent(event)
 
 
+class ResultList(QListWidget):
+    def __init__(self, *args, activated=None, render_more=None, **kwargs):
+        super().__init__(*args, flow=QListView.LeftToRight, **kwargs)
+        self.setViewMode(QListView.IconMode)
+        self.setWrapping(False)
+        self.setWordWrap(True)
+        self.setIconSize(QSize(360, 480))
+        self.setFixedHeight(400)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        if activated:
+            self.itemActivated.connect(activated)
+        if render_more:
+            self.render_more = render_more
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Right:
+            selected = self.selectedItems()[0]
+            if self.row(selected) >= self.count() - 1:
+                self.render_more(selected)
+        super().keyPressEvent(event)
+
+    def render_more(self, item):
+        print(item)
+
+
 class YouTubeView(QWidget):
     api = requests.session()
     current_focus = 0
@@ -201,12 +235,7 @@ class YouTubeView(QWidget):
         self.search.submit = self.do_search
         self.search.textChanged.connect(self.tips_update)
 
-        self.results = QListWidget(flow=QListView.LeftToRight)
-        self.results.setViewMode(QListView.IconMode)
-        self.results.setWrapping(False)
-        self.results.setWordWrap(True)
-        self.results.setIconSize(QSize(360, 480))
-        self.results.itemActivated.connect(self.activate_item)
+        self.results = ResultList(activated=self.activate_item, render_more=self.search_continue)
 
         self.layout = QVBoxLayout()
         #self.layout.setLabelAlignment(Qt.AlignHorizontal_Mask)
@@ -368,14 +397,7 @@ class YouTubeView(QWidget):
 
             section.addWidget(QLabel(section_title))
 
-            list_widget = QListWidget(flow=QListView.LeftToRight)
-            list_widget.setViewMode(QListView.IconMode)
-            list_widget.setWrapping(False)
-            list_widget.setWordWrap(True)
-            list_widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            list_widget.setFixedHeight(400)
-            list_widget.setSelectionMode(QAbstractItemView.SingleSelection)
-            list_widget.setIconSize(QSize(360, 480))
+            list_widget = ResultList()
 
             items = self.render_row_result(row['shelfRenderer']['content']['horizontalListRenderer']['items'])
             for item in items:
@@ -419,25 +441,41 @@ class YouTubeView(QWidget):
 
             self.keyboard_tips.insertItems(0, [i[0] for i in res.json()[1]])
 
-    def do_search(self):
+    def search_continue(self, last_item):
+        self.do_search(False)
+
+    def do_search(self, init=True):
         url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'search', conf.YOUTUBE_API_KEY)
         data = self.api_data.copy()
-        data['query'] = self.search.text()
+        if not init:
+            data['continuation'] = self.results.continuation['continuation']
+            data['context']['clickTracking'] = {'clickTrackingParams': self.results.continuation['clickTrackingParams']}
+        else:
+            data['query'] = self.search.text()
+
         res = self.post(url, data=json.dumps(data))
         res = res.json()
-        contents = res['contents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']['contents']
-        self.set_results(self.render_row_result(contents))
+
+        if init:
+            isr = res['contents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']
+        else:
+            isr = res['continuationContents']['itemSectionContinuation']
+        contents = isr['contents']
+        self.results.continuation = isr['continuations'][0]['nextContinuationData']
+        self.set_results(self.render_row_result(contents), init)
         self.results.setFocus()
-        self.results.item(0).setSelected(True)
+        if init:
+            self.results.item(0).setSelected(True)
 
     def set_search_from_tip(self, item):
         self.search.clear()
         self.search.insert(item.text())
         self.search.submit()
 
-    def set_results(self, items):
-        while self.results.count():
-            self.results.takeItem(0)
+    def set_results(self, items, init):
+        if init:
+            while self.results.count():
+                self.results.takeItem(0)
         for item in items:
             self.results.addItem(item)
 
@@ -461,6 +499,8 @@ class YouTubeView(QWidget):
             if not it:
                 it = col.get('gridChannelRenderer')
             if not it:
+                it = col.get('pivotVideoRenderer')
+            if not it:
                 it = col.get('compactVideoRenderer', {})
 
             if not it:
@@ -472,7 +512,7 @@ class YouTubeView(QWidget):
 
             badges = it.get('badges')
             mode = ''
-            if badges:
+            if badges and 'textBadge' in badges[0]:
                 mode = '[{}] '.format(badges[0]['textBadge']['label']['runs'][0]['text'])
 
             try:
@@ -493,6 +533,7 @@ class YouTubeView(QWidget):
         return items
 
     def cache_images(self, row):
+        size = (480, 360)
         images = []
         pool = Pool(processes=16)
         for col in row:
@@ -506,17 +547,25 @@ class YouTubeView(QWidget):
 
             if not it:
                 filepath = 'img/youtube_default.png'
-                images.append((None, filepath))
+                images.append((None, filepath, size))
                 continue
 
             thumb = it.get('thumbnail')
             if thumb:
                 thumbs = thumb['thumbnails']
-                thumb = thumbs[-1]['url']
+                for t in thumbs:
+                    if t['height'] >= 360:
+                        thumb = t['url']
+                        size = (t['width'], t['height'])
+                        break
+                else:
+                    thumb = thumbs[-1]['url']
+                    size = (t['width'], t['height'])
+
                 url = not thumb.startswith('http') and 'https:{}'.format(thumb) or thumb
                 filepath = 'cache/{}'.format(thumb.replace('/', '_'))
-                images.append((url, filepath))
+                images.append((url, filepath, size))
             else:
                 filepath = 'img/youtube_default.png'
-                images.append((None, filepath))
+                images.append((None, filepath, size))
         return pool.map(cache_image, images)

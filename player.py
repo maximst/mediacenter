@@ -78,6 +78,7 @@ class Player(object):
             ytdl=True,
             vo=conf.MPV_VO,
             log_handler=print,
+            input_ipc_server='/tmp/mpvsocket',
             #watch_later_directory='~/.config/mpv/watch_later'
         )
 
