@@ -66,11 +66,15 @@ class Player(object):
     _playlist = []
     current_index = 0
     control = None
+    _player = None
 
     def __init__(self, winid, control):
         self.win_id = winid
         self.control = control
         self.set_controls()
+        self.timer = QTimer()
+        self.timer.timeout.connect(self._timer)
+        self.timer.start(1000)
 
     def setup_player(self):
         self._player = mpv.MPV(
@@ -134,10 +138,15 @@ class Player(object):
         self.is_playing = False
 
     def pause(self):
-        self._player.pause()
+        self._player.pause = True
         self.is_paused = True
 
     def play(self):
+        if self.is_playing and self.is_paused:
+            self._player.pause = False
+            self.is_paused = False
+            return True
+
         try:
             self.url = self.playlist[self.current_index][0]
         except KeyError:
@@ -183,3 +192,9 @@ class Player(object):
             self.play()
         else:
             self.pause()
+
+
+    def _timer(self):
+        if self._player:
+            print(self._player.duration)
+            print(self._player.time_pos)
