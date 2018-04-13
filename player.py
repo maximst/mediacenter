@@ -94,6 +94,14 @@ class Player(object):
         self.control.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.control.setFeatures(self.control.NoDockWidgetFeatures)
 
+        self.progress = QSlider(Qt.Horizontal)
+        self.progress.is_locked = False
+        self.progress.setMinimum(0)
+        self.progress.sliderMoved.connect(self.seek)
+        self.progress.sliderPressed.connect(self.lock_slider)
+        self.progress.sliderReleased.connect(self.seek)
+        self.control.widget().layout().addWidget(self.progress)
+
         self.buttons = QWidget()
         self.buttons.layout = QHBoxLayout()
         self.buttons.layout.setContentsMargins(0, 0, 0, 0)
@@ -120,6 +128,7 @@ class Player(object):
         self.buttons.right_navigate = lambda b: self.buttons_nav('right', b)
 
         self.control.widget().layout().addWidget(self.playlist_ctrl)
+
         self.control.hide()
 
     def playlist_up(self):
@@ -193,8 +202,19 @@ class Player(object):
         else:
             self.pause()
 
+    def seek(self):
+        self.progress.is_locked = True
+        pos = self.progress.value()
+        print(pos)
+        print(self._player.duration)
+        print(self._player.time_pos)
+        self._player.time_pos = pos
+        self.progress.is_locked = False
+
+    def lock_slider(self):
+        self.progress.is_locked = True
 
     def _timer(self):
-        if self._player:
-            print(self._player.duration)
-            print(self._player.time_pos)
+        if self._player and not self.progress.is_locked:
+            self.progress.setMaximum(int(self._player.duration or 0))
+            self.progress.setValue(int(self._player.time_pos or 0))
