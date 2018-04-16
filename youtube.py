@@ -182,6 +182,8 @@ class ResultList(QListWidget):
 
 
 class YouTubeView(QWidget):
+    search_rendered = False
+    channel_rendered = False
     api = requests.session()
     current_focus = 0
     results = []
@@ -296,7 +298,18 @@ class YouTubeView(QWidget):
         print(event.key())
         w = None
         _si = lambda: True
-        if event.key() == Qt.Key_Down:
+
+        if event.key() == Qt.Key_Escape:
+            if self.search_rendered and self.channel_rendered:
+                e = object()
+                e.key = lambda: Qt.Key_Return
+                self.search_activated(e)
+                self.channel_rendered = False
+            elif self.search_rendered:
+                self.clear_results()
+                #self.recomendations()
+                self.search_rendered = False
+        elif event.key() == Qt.Key_Down:
             if self.current_focus >= self.layout.count() - 1 and not self.rec_end:
                 self.recomendations()
             w = self.layout.itemAt(self.current_focus+1).itemAt(1).widget()
@@ -367,6 +380,7 @@ class YouTubeView(QWidget):
         self.clear_results()
         self.recomendations(browse_id=id, tracking_params=tracking_params)
         print('Render channel', id)
+        self.channel_rendered = True
 
     def recomendations(self, browse_id=None, tracking_params=None):
         url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'browse', conf.YOUTUBE_API_KEY)
@@ -422,6 +436,7 @@ class YouTubeView(QWidget):
             self.layout.addLayout(self.results_layout)
             self.current_focus = 1
             self.tips_update()
+            self.search_rendered = True
         elif event.key() in (Qt.Key_Up, Qt.Key_Right, Qt.Key_Down, Qt.Key_Left):
             self.keyPressEvent(event)
 

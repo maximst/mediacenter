@@ -80,10 +80,11 @@ class Player(object):
         self._player = mpv.MPV(
             wid=self.win_id,
             ytdl=True,
+            ytdl_format="bestvideo[height<=?1080][vcodec!=vp9]+bestaudio/best",
             vo=conf.MPV_VO,
-            log_handler=print,
-            input_ipc_server='/tmp/mpvsocket',
-            #watch_later_directory='~/.config/mpv/watch_later'
+            hwdec=conf.MPV_VO,
+            hwdec_codecs='all',
+            log_handler=print
         )
 
     def set_controls(self):

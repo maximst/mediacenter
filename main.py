@@ -89,13 +89,8 @@ class Main(QMainWindow):
 
 
 app = QApplication(sys.argv)
-
-# This is necessary since PyQT stomps over the locale settings needed by libmpv.
-# This needs to happen after importing PyQT before creating the first mpv.MPV instance.
-import locale
-locale.setlocale(locale.LC_NUMERIC, 'C')
-win = Main()
-win.setStyleSheet("""
+#app.setAttribute(Qt.AA_UseStyleSheetPropagationInWidgetStyles, True)
+app.setStyleSheet("""
     QWidget, QMainWindow {
         background-color: rgba(50,50,50, 1);
         color: #fff;
@@ -105,7 +100,17 @@ win.setStyleSheet("""
         background-color: rgba(100,100,100, 0.5);
         color: #fff;
     }
+    QPushButton:hover, QPushButton:checked {
+        border-color: rgba(0, 255, 0, 1) !important;
+        background-color: rgba(200, 200, 200, 1) !important;
+    }
 """)
+
+# This is necessary since PyQT stomps over the locale settings needed by libmpv.
+# This needs to happen after importing PyQT before creating the first mpv.MPV instance.
+import locale
+locale.setlocale(locale.LC_NUMERIC, 'C')
+win = Main()
 win.categories.render()
 win.setAttribute(Qt.WA_NoSystemBackground, True)
 win.setAttribute(Qt.WA_TranslucentBackground, True)
