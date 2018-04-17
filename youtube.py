@@ -40,7 +40,7 @@ class KeyboardButton(QPushButton):
         self.clicked.connect(self._click)
 
     def keyPressEvent(self, event):
-        if event.key() in (Qt.Key_Down, Qt.Key_Up, Qt.Key_Left, Qt.Key_Right):
+        if event.key() in (Qt.Key_Down, Qt.Key_Up, Qt.Key_Left, Qt.Key_Right, Qt.Key_Escape):
             self.parent().keyPressEvent(event, self)
         elif event.key() == Qt.Key_Return:
             self.click_handler(self)
@@ -116,6 +116,8 @@ class Keyboard(QWidget):
                 self.position[1] = pos[1]+1
             else:
                 self.parent().keyPressEvent(event, self)
+        elif event.key() == Qt.Key_Escape:
+            self.parent().keyPressEvent(event, self)
 
     def setFocus(self):
         super().setFocus()
@@ -305,9 +307,12 @@ class YouTubeView(QWidget):
                 e.key = lambda: Qt.Key_Return
                 self.search_activated(e)
                 self.channel_rendered = False
+            elif self.channel_rendered:
+                self.clear_results()
+                self.recomendations(init=True)
             elif self.search_rendered:
                 self.clear_results()
-                #self.recomendations()
+                self.recomendations(init=True)
                 self.search_rendered = False
         elif event.key() == Qt.Key_Down:
             if self.current_focus >= self.layout.count() - 1 and not self.rec_end:
@@ -382,13 +387,13 @@ class YouTubeView(QWidget):
         print('Render channel', id)
         self.channel_rendered = True
 
-    def recomendations(self, browse_id=None, tracking_params=None):
+    def recomendations(self, browse_id=None, tracking_params=None, init=False):
         url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'browse', conf.YOUTUBE_API_KEY)
         data = self.api_data.copy()
         data['browseId'] = browse_id or 'default'
         if tracking_params:
             data['context']['clickTracking'] = {"clickTrackingParams": tracking_params}
-        elif self.rec_next and self.rec_continuation:
+        elif self.rec_next and self.rec_continuation and not init:
             data['context']['clickTracking'] = {"clickTrackingParams": self.rec_next}
             data['continuation'] = self.rec_continuation
             #data.pop('browseId', None)
