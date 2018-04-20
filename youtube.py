@@ -467,6 +467,7 @@ class YouTubeView(QWidget):
     def do_search(self, init=True):
         url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'search', conf.YOUTUBE_API_KEY)
         data = self.api_data.copy()
+        data.pop('browseId', None)
         if not init:
             data['continuation'] = self.results.continuation['continuation']
             data['context']['clickTracking'] = {'clickTrackingParams': self.results.continuation['clickTrackingParams']}
@@ -515,15 +516,22 @@ class YouTubeView(QWidget):
                 item.setSelected(True)
                 break
 
-            it = col.get('gridVideoRenderer')
-            if not it:
-                it = col.get('gridChannelRenderer')
-            if not it:
-                it = col.get('pivotVideoRenderer')
-            if not it:
-                it = col.get('compactVideoRenderer', {})
-
-            if not it:
+            keys = (
+                'gridVideoRenderer',
+                'gridChannelRenderer',
+                'gridPlaylistRenderer',
+                'pivotVideoRenderer',
+                'pivotChannelRenderer',
+                'pivotPlaylistRenderer',
+                'compactVideoRenderer',
+                'compactChannelRenderer',
+                'compactPlaylistRenderer'
+            )
+            for key in keys:
+                it = col.get(key)
+                if it:
+                    break
+            else:
                 continue
 
             title = it['title']['runs'][0]['text'][:32]
@@ -557,15 +565,22 @@ class YouTubeView(QWidget):
         images = []
         pool = Pool(processes=16)
         for col in row:
-            it = col.get('gridVideoRenderer')
-            if not it:
-                it = col.get('gridChannelRenderer')
-            if not it:
-                it = col.get('pivotVideoRenderer')
-            if not it:
-                it = col.get('compactVideoRenderer', {})
-
-            if not it:
+            keys = (
+                'gridVideoRenderer',
+                'gridChannelRenderer',
+                'gridPlaylistRenderer',
+                'pivotVideoRenderer',
+                'pivotChannelRenderer',
+                'pivotPlaylistRenderer',
+                'compactVideoRenderer',
+                'compactChannelRenderer',
+                'compactPlaylistRenderer'
+            )
+            for key in keys:
+                it = col.get(key)
+                if it:
+                    break
+            else:
                 filepath = 'img/youtube_default.png'
                 images.append((None, filepath, size))
                 continue

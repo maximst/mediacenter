@@ -37,6 +37,7 @@ class ControlButton(QPushButton):
 class Playlist(QListWidget):
     def __init__(self, *args, **kwargs):
         self.playlist_up = kwargs.pop('playlist_up', self.playlist_up)
+        self.activate_item = kwargs.pop('activate_item', self.playlist_up)
         kwargs['flow'] = QListView.LeftToRight
 
         super().__init__(*args, **kwargs)
@@ -45,6 +46,7 @@ class Playlist(QListWidget):
         self.setWrapping(False)
         self.setWordWrap(True)
         self.setIconSize(QSize(240, 320))
+        self.itemActivated.connect(self.activate_item)
 
     def playlist_up(self):
         raise NotImplementedError
@@ -122,7 +124,8 @@ class Player(object):
 
         self.control.widget().layout().addWidget(self.buttons)
 
-        self.playlist_ctrl = Playlist(playlist_up=self.playlist_up)
+        self.playlist_ctrl = Playlist(playlist_up=self.playlist_up,
+                                      activate_item=self.play_current_item)
 
         self.buttons.down_navigate = lambda: self.playlist_ctrl.setFocus()
         self.buttons.left_navigate = lambda b: self.buttons_nav('left', b)
@@ -134,6 +137,10 @@ class Player(object):
 
     def playlist_up(self):
         self.play_btn.setFocus()
+
+    def play_current_item(self, item):
+        self.current_index = self.playlist_ctrl.indexFromItem(item).row()
+        self.play()
 
     def buttons_nav(self, direction, btn):
         index = self.buttons.layout.indexOf(btn)
@@ -206,9 +213,6 @@ class Player(object):
     def seek(self):
         self.progress.is_locked = True
         pos = self.progress.value()
-        print(pos)
-        print(self._player.duration)
-        print(self._player.time_pos)
         self._player.time_pos = pos
         self.progress.is_locked = False
 
