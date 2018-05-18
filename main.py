@@ -24,7 +24,7 @@ class Main(QMainWindow):
         self.container.setWidgetResizable(True)
         self.container.setStyleSheet("""
             QWidget {
-                background-color: rgba(30,30,30, 1);
+                background-color: rgb(50,50,50);
                 color: #fff;
             }
         """)
@@ -92,17 +92,13 @@ app = QApplication(sys.argv)
 #app.setAttribute(Qt.AA_UseStyleSheetPropagationInWidgetStyles, True)
 app.setStyleSheet("""
     QWidget, QMainWindow {
-        background-color: rgba(50,50,50, 1);
+        background-color: rgb(50,50,50);
         color: #fff;
         font-size: 22pt;
     }
-    QWidget:item:selected {
-        background-color: rgba(100,100,100, 0.5);
+    QWidget:item:focus:selected {
+        background-color: rgb(100,100,100);
         color: #fff;
-    }
-    QPushButton:hover, QPushButton:checked {
-        border-color: rgba(0, 255, 0, 1) !important;
-        background-color: rgba(200, 200, 200, 1) !important;
     }
 """)
 

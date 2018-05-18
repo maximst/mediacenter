@@ -10,6 +10,15 @@ class ControlButton(QPushButton):
         _defclk = lambda: None
         self.click_handler = kwargs.pop('clicked', _defclk)
         super().__init__(*args, **kwargs)
+        self.setAttribute(Qt.WA_StyledBackground)
+        self.setStyleSheet('''
+            ControlButton:hover, ControlButton:focus {
+                background: rgb(128,128,128);
+            }
+            ControlButton:pressed, ControlButton:focus:pressed {
+                background: rgb(100,100,100);
+            }
+        ''')
         self.clicked.connect(self._click)
         self.setFixedSize(64, 64)
 
@@ -56,6 +65,8 @@ class Playlist(QListWidget):
             self.playlist_up()
         elif event.key() == Qt.Key_Down:
             return
+        elif event.key() == Qt.Key_Left and self.currentRow() < 1:
+            return
         else:
             super().keyPressEvent(event)
 
@@ -79,15 +90,18 @@ class Player(object):
         self.timer.start(1000)
 
     def setup_player(self):
-        self._player = mpv.MPV(
-            wid=self.win_id,
-            ytdl=True,
-            ytdl_format="bestvideo[height<=?1080][vcodec!=vp9]+bestaudio/best",
-            vo=conf.MPV_VO,
-            hwdec=conf.MPV_VO,
-            hwdec_codecs='all',
-            log_handler=print
-        )
+        params = {
+            'wid': self.win_id,
+            'ytdl': True,
+            'ytdl_format': "bestvideo[height<=?1080][vcodec!=vp9]+bestaudio/best",
+            'vo': conf.MPV_VO,
+            'hwdec_codecs': 'all',
+            'log_handler': print
+        }
+        if hasattr(conf, 'MPV_HWDEC'):
+            params['hwdec'] = conf.MPV_HWDEC
+
+        self._player = mpv.MPV(**params)
 
     def set_controls(self):
         self.control.setWidget(QWidget())

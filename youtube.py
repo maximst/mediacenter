@@ -36,6 +36,15 @@ def cache_image(f):
 class KeyboardButton(QPushButton):
     def __init__(self, value):
         super().__init__(value)
+        self.setAttribute(Qt.WA_StyledBackground)
+        self.setStyleSheet('''
+            KeyboardButton:hover, KeyboardButton:focus {
+                background: rgb(128,128,128);
+            }
+            KeyboardButton:pressed, KeyboardButton:focus:pressed {
+                background: rgb(100,100,100);
+            }
+        ''')
         self.val = value
         self.clicked.connect(self._click)
 
@@ -171,6 +180,16 @@ class ResultList(QListWidget):
             self.itemActivated.connect(activated)
         if render_more:
             self.render_more = render_more
+
+        self.setAttribute(Qt.WA_StyledBackground)
+        self.setStyleSheet('''
+            ResultList:item:focus:selected {
+                background-color: rgb(100,100,100);
+            }
+            ResultList:focus {
+                background-color: rgb(80,80,80);
+            }
+        ''')
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Right:
