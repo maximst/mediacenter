@@ -77,15 +77,15 @@ class Main(QMainWindow):
                 self.container.setFocus()
             else:
                 self.player.stop()
+                self.current_view.setFocus()
                 #self.setCentralWidget(self.container)
         elif event.key() == Qt.Key_Return and self.player.is_playing:
             self.play_control.show()
             self.player.play_btn.setFocus()
-
-        if self.current_view:
+        elif self.current_view:
             self.current_view.keyPressEvent(event)
-
-        super().keyPressEvent(event)
+        else:
+            super().keyPressEvent(event)
 
 
 app = QApplication(sys.argv)

@@ -1,4 +1,5 @@
 import os
+import gc
 import json
 import pickle
 import urllib
@@ -130,18 +131,23 @@ class Keyboard(QWidget):
 
     def setFocus(self):
         super().setFocus()
-        self.layout.itemAtPosition(*self.position).widget().setFocus()
+        item = self.layout.itemAtPosition(*self.position)
+        item and item.widget().setFocus() or self.layout.itemAt(0).widget().setFocus()
 
     def show(self, ktype):
-        while self.layout.count():
-            c = self.layout.takeAt(0)
-            c.widget().deleteLater()
+        try:
+            while self.layout.count():
+                c = self.layout.takeAt(0)
+                c.widget().deleteLater()
+        except RuntimeError:
+            self.__init__(parrent=self.parent(), input_field=self.input_field)
 
         for ri, row in enumerate(getattr(self, '{}_keys'.format(ktype), [])):
             for ci, col in enumerate(row):
                 btn = KeyboardButton(col)
                 btn.click_handler = self.handle_button
                 self.layout.addWidget(btn, ri, ci)
+        self.setFocus()
 
     def handle_button(self, btn):
         val = btn.val.lower()
@@ -258,7 +264,7 @@ class YouTubeView(QWidget):
         self.search.submit = self.do_search
         self.search.textChanged.connect(self.tips_update)
 
-        self.results = ResultList(activated=self.activate_item, render_more=self.search_continue)
+        self.init_keyboard()
 
         self.layout = QVBoxLayout()
         #self.layout.setLabelAlignment(Qt.AlignHorizontal_Mask)
@@ -268,6 +274,7 @@ class YouTubeView(QWidget):
         self.search_layout.addWidget(self.search)
         self.layout.addLayout(self.search_layout)
 
+    def init_keyboard(self):
         self.keyboard_layout = QHBoxLayout()
         self.keyboard = Keyboard(input_field=self.search)
         self.keyboard_tips = KeyboardTips()
@@ -275,6 +282,7 @@ class YouTubeView(QWidget):
         self.keyboard_layout.addWidget(self.keyboard_tips)
         self.keyboard_layout.addWidget(self.keyboard)
 
+        self.results = ResultList(activated=self.activate_item, render_more=self.search_continue)
         self.results_layout = QVBoxLayout()
         self.results_layout.addWidget(QLabel('Results'))
         self.results_layout.addWidget(self.results)
@@ -322,8 +330,7 @@ class YouTubeView(QWidget):
 
         if event.key() == Qt.Key_Escape:
             if self.search_rendered and self.channel_rendered:
-                e = object()
-                e.key = lambda: Qt.Key_Return
+                e = type('Obj', (), {'key': lambda self: Qt.Key_Return})()
                 self.search_activated(e)
                 self.channel_rendered = False
             elif self.channel_rendered:
@@ -342,9 +349,10 @@ class YouTubeView(QWidget):
             not getattr(w, 'selectedItems', _si)() and w.item(0) and w.item(0).setSelected(True)
             self.current_focus += 1
         elif event.key() == Qt.Key_Up:
-            w = self.layout.itemAt(self.current_focus-1).itemAt(1).widget()
-            w.setFocus()
-            not getattr(w, 'selectedItems', _si)() and w.item(0) and w.item(0).setSelected(True)
+            item = self.layout.itemAt(self.current_focus-1)
+            w = item and item.itemAt(1).widget() or None
+            w and w.setFocus()
+            w and not getattr(w, 'selectedItems', _si)() and w.item(0) and w.item(0).setSelected(True)
 
             self.current_focus -= 1
         elif event.key() == Qt.Key_Left:
@@ -377,8 +385,13 @@ class YouTubeView(QWidget):
         url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'next', conf.YOUTUBE_API_KEY)
         res = self.post(url, data=json.dumps(data))
         res = res.json()
-        cont = res['contents']['singleColumnWatchNextResults']['pivot']['pivot']
-        cont = cont['contents'][0]['pivotShelfRenderer']['content']
+        content = res['contents']['singleColumnWatchNextResults']['pivot']['pivot']
+        cont = content['contents'][0]['pivotShelfRenderer'].get('content')
+
+        if not cont:
+            QMessageBox.about(self, u'Видео недоступно', u'Это видео недоступно')
+            return None
+
         plst = cont['pivotHorizontalListRenderer']
         playlist = [['https://www.youtube.com/watch?v={}'.format(video_id), title, img]]
         rows = []
@@ -396,8 +409,56 @@ class YouTubeView(QWidget):
 
         self.window().player.playlist = playlist
         self.window().player.current_index = plst.get('selectedIndex', 0)
+
+        continuations = plst.get('continuations')
+        if continuations:
+            continuation = continuations[0]['nextContinuationData']['continuation']
+            click_tracking_params = continuations[0]['nextContinuationData']['clickTrackingParams']
+            self.window().player.new_playlist_items = self.next_playlist(continuation, click_tracking_params)
         self.window().player.play()
         self.window().setFocus()
+
+    def next_playlist(self, conts, ctp):
+        def get_next_items():
+            continuation = conts
+            click_tracking_params = ctp
+            data = self.api_data.copy()
+            data.pop('browseId', None)
+            data['continuation'] = continuation
+            data['context'].update({
+                'clickTracking': {
+                    'clickTrackingParams': click_tracking_params,
+                }
+            })
+
+            url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'next', conf.YOUTUBE_API_KEY)
+            res = self.post(url, data=json.dumps(data))
+            res = res.json()
+
+            cont = res['continuationContents']['pivotHorizontalListContinuation']
+            playlist = []
+            rows = []
+            for row in cont['items']:
+                r = row.get('pivotVideoRenderer')
+                if r:
+                    url = 'https://www.youtube.com/watch?v={}'.format(r['videoId'])
+                    playlist.append([url, r['title']['runs'][0]['text'], None])
+                    rows.append(row)
+
+            images = self.cache_images(rows)
+            for i, img in enumerate(images):
+                playlist[i][2] = img
+
+            continuations = cont.get('continuations')
+            if continuations:
+                continuation = continuations[0]['nextContinuationData']['continuation']
+                click_tracking_params = continuations[0]['nextContinuationData']['clickTrackingParams']
+                self.window().player.new_playlist_items = self.next_playlist(continuation, click_tracking_params)
+            else:
+                self.window().player.new_playlist_items = lambda self: []
+
+            return playlist
+        return get_next_items
 
     def render_channel(self, id, tracking_params):
         self.setFocus()
@@ -440,7 +501,7 @@ class YouTubeView(QWidget):
             items = self.render_row_result(row['shelfRenderer']['content']['horizontalListRenderer']['items'])
             for item in items:
                 list_widget.addItem(item)
-
+            del items
             list_widget.itemActivated.connect(self.activate_item)
             section.addWidget(list_widget)
             self.recs.append(section)
@@ -453,10 +514,9 @@ class YouTubeView(QWidget):
     def search_activated(self, event):
         if event.key() == Qt.Key_Return:
             self.clear_results()
+            self.init_keyboard()
             self.layout.addLayout(self.keyboard_layout)
             self.keyboard.show('ru')
-            self.keyboard.setFocus()
-            self.keyboard.layout.itemAt(0).widget().setFocus()
             self.layout.addLayout(self.results_layout)
             self.current_focus = 1
             self.tips_update()
@@ -467,8 +527,16 @@ class YouTubeView(QWidget):
     def clear_results(self):
         while self.layout.count() > 1:
             c = self.layout.takeAt(1)
-            c.itemAt(0).widget().deleteLater()
-            c.itemAt(1).widget().deleteLater()
+            w0 = c.itemAt(0).widget()
+            w0 and w0.deleteLater()
+            w1 = c.itemAt(1).widget()
+
+            while hasattr(w1, 'count') and w1.count():
+                w1.removeItemWidget(w1.takeItem(0))
+            w1 and hasattr(w1, 'clear') and w1.clear()
+            w1 and w1.deleteLater()
+
+        gc.collect(0)
 
     def tips_update(self):
         data = self.search_tips_data.copy()
@@ -518,6 +586,7 @@ class YouTubeView(QWidget):
                 self.results.takeItem(0)
         for item in items:
             self.results.addItem(item)
+        del items
 
     def render_row_result(self, row):
         items = []
@@ -577,6 +646,7 @@ class YouTubeView(QWidget):
             item.title = title
             item.img = img
             items.append(item)
+        del images
         return items
 
     def cache_images(self, row):
@@ -622,4 +692,6 @@ class YouTubeView(QWidget):
             else:
                 filepath = 'img/youtube_default.png'
                 images.append((None, filepath, size))
-        return pool.map(cache_image, images)
+        result = pool.map(cache_image, images)
+        pool.terminate()
+        return result

@@ -47,6 +47,7 @@ class Playlist(QListWidget):
     def __init__(self, *args, **kwargs):
         self.playlist_up = kwargs.pop('playlist_up', self.playlist_up)
         self.activate_item = kwargs.pop('activate_item', self.playlist_up)
+        self.update_playlist = kwargs.pop('update_playlist', self.playlist_up)
         kwargs['flow'] = QListView.LeftToRight
 
         super().__init__(*args, **kwargs)
@@ -67,6 +68,8 @@ class Playlist(QListWidget):
             return
         elif event.key() == Qt.Key_Left and self.currentRow() < 1:
             return
+        elif event.key() == Qt.Key_Right and self.currentRow() == self.count() - 1:
+            self.update_playlist()
         else:
             super().keyPressEvent(event)
 
@@ -139,7 +142,8 @@ class Player(object):
         self.control.widget().layout().addWidget(self.buttons)
 
         self.playlist_ctrl = Playlist(playlist_up=self.playlist_up,
-                                      activate_item=self.play_current_item)
+                                      activate_item=self.play_current_item,
+                                      update_playlist=self.update_playlist)
 
         self.buttons.down_navigate = lambda: self.playlist_ctrl.setFocus()
         self.buttons.left_navigate = lambda b: self.buttons_nav('left', b)
@@ -161,12 +165,13 @@ class Player(object):
         if direction == 'left' and index:
             self.buttons.layout.itemAt(index-1).widget().setFocus()
         elif direction == 'right' and index < self.buttons.layout.count():
-            self.buttons.layout.itemAt(index+1).widget().setFocus()
+            item = self.buttons.layout.itemAt(index+1)
+            item and item.widget().setFocus()
 
     def stop(self):
-        self._player.quit_watch_later(0)
-        self._player.terminate()
         self.is_playing = False
+        #self._player.quit_watch_later(0)
+        self._player.terminate()
 
     def pause(self):
         self._player.pause = True
@@ -188,6 +193,7 @@ class Player(object):
             self._player.play(self.url)
             self.select_current()
             self.is_playing = True
+            self._player.event_callback('end_file')(self.next_play_event)
             return True
 
     def select_current(self):
@@ -207,6 +213,20 @@ class Player(object):
 
         for row in value:
             self.playlist_ctrl.addItem(QListWidgetItem(QIcon(row[2]), row[1]))
+
+    def new_playlist_items(self):
+        return []
+
+    def update_playlist(self):
+        new_items = self.new_playlist_items()
+        index = len(self.playlist) - 1
+        self.playlist += new_items
+        self.playlist_ctrl.item(index).setSelected(True)
+        self.playlist_ctrl.setFocus()
+
+    def next_play_event(self, event):
+        if self.is_playing:
+            self.next_play(None)
 
     def next_play(self, btn):
         if self.current_index < len(self.playlist) - 1:
