@@ -48,6 +48,7 @@ class Playlist(QListWidget):
         self.playlist_up = kwargs.pop('playlist_up', self.playlist_up)
         self.activate_item = kwargs.pop('activate_item', self.playlist_up)
         self.update_playlist = kwargs.pop('update_playlist', self.playlist_up)
+        self.close_player = kwargs.pop('close_player', self.playlist_up)
         kwargs['flow'] = QListView.LeftToRight
 
         super().__init__(*args, **kwargs)
@@ -57,6 +58,17 @@ class Playlist(QListWidget):
         self.setWordWrap(True)
         self.setIconSize(QSize(240, 320))
         self.itemActivated.connect(self.activate_item)
+
+        self.setStyleSheet("""
+            Playlist:item:selected {
+                background-color: rgb(70,70,70);
+                color: #fff;
+            }
+            Playlist:item:focus:selected {
+                background-color: rgb(150,150,150);
+                color: #fff;
+            }
+        """)
 
     def playlist_up(self):
         raise NotImplementedError
@@ -96,9 +108,10 @@ class Player(object):
         params = {
             'wid': self.win_id,
             'ytdl': True,
-            'ytdl_format': "bestvideo[height<=?1080][vcodec!=vp9]+bestaudio/best",
+            'ytdl_format': "bestvideo[height<=1080][vcodec!=vp9]+bestaudio/best[height<=1080]",
             'vo': conf.MPV_VO,
             'hwdec_codecs': 'all',
+            'video_zoom': -0.1,
             'log_handler': print
         }
         if hasattr(conf, 'MPV_HWDEC'):
@@ -109,7 +122,7 @@ class Player(object):
     def set_controls(self):
         self.control.setWidget(QWidget())
         self.control.widget().setLayout(QVBoxLayout())
-        self.control.widget().layout().setContentsMargins(0, 0, 0, 0)
+        self.control.widget().layout().setContentsMargins(20, 0, 20, 20)
         self.control.widget().layout().setSpacing(0)
         self.control.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.control.setFeatures(self.control.NoDockWidgetFeatures)
@@ -153,12 +166,16 @@ class Player(object):
 
         self.control.hide()
 
+    def set_icon_size(self, h, w):
+        self.playlist_ctrl.setIconSize(QSize(h, w))
+
     def playlist_up(self):
         self.play_btn.setFocus()
 
     def play_current_item(self, item):
         self.current_index = self.playlist_ctrl.indexFromItem(item).row()
         self.play()
+        self.playlist_ctrl.setFocus()
 
     def buttons_nav(self, direction, btn):
         index = self.buttons.layout.indexOf(btn)
@@ -170,8 +187,11 @@ class Player(object):
 
     def stop(self):
         self.is_playing = False
+        self.pause()
         #self._player.quit_watch_later(0)
+        self._player.quit()
         self._player.terminate()
+        self.setup_player()
 
     def pause(self):
         self._player.pause = True
@@ -185,11 +205,12 @@ class Player(object):
 
         try:
             self.url = self.playlist[self.current_index][0]
+            if callable(self.url):
+                self.url = self.url()
         except KeyError:
             return False
         else:
-            self.is_playing and self.stop()
-            self.setup_player()
+            self.is_playing and self.stop() or self.setup_player()
             self._player.play(self.url)
             self.select_current()
             self.is_playing = True
@@ -223,6 +244,7 @@ class Player(object):
         self.playlist += new_items
         self.playlist_ctrl.item(index).setSelected(True)
         self.playlist_ctrl.setFocus()
+        return
 
     def next_play_event(self, event):
         if self.is_playing:

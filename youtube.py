@@ -39,6 +39,12 @@ class KeyboardButton(QPushButton):
         super().__init__(value)
         self.setAttribute(Qt.WA_StyledBackground)
         self.setStyleSheet('''
+            KeyboardButton {
+                width: 100px;
+                height: 70px;
+                padding: 3px;
+                font-size: 30px;
+            }
             KeyboardButton:hover, KeyboardButton:focus {
                 background: rgb(128,128,128);
             }
@@ -164,6 +170,15 @@ class Keyboard(QWidget):
 
 
 class KeyboardTips(QListWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setAttribute(Qt.WA_StyledBackground)
+        self.setStyleSheet('''
+            KeyboardTips {
+                font-size: 30px;
+            }
+        ''')
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Right:
             self.parent().keyPressEvent(event, self)
@@ -273,6 +288,8 @@ class YouTubeView(QWidget):
         self.search_layout.addWidget(QLabel('Search'))
         self.search_layout.addWidget(self.search)
         self.layout.addLayout(self.search_layout)
+        self.layout.setContentsMargins(20, 20, 20, 0)
+        self.layout.setSpacing(0)
 
     def init_keyboard(self):
         self.keyboard_layout = QHBoxLayout()
@@ -340,6 +357,8 @@ class YouTubeView(QWidget):
                 self.clear_results()
                 self.recomendations(init=True)
                 self.search_rendered = False
+            else:
+                self.window().keyPressEvent(event)
         elif event.key() == Qt.Key_Down:
             if self.current_focus >= self.layout.count() - 1 and not self.rec_end:
                 self.recomendations()
