@@ -1,48 +1,94 @@
 import re
 import requests
+import json
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
 
+CHASTV_QUERY = ''
+
+
+def update_chastv(r):
+    r = r or re.compile('wmsAuthSign\=[^"^ ]+')
+    global CHASTV_QUERY
+
+    resp = requests.get('http://chas.tv/channel/pervyi')
+    rs = r.search(resp.text)
+    if rs:
+        CHASTV_QUERY = rs.group()
+
+    resp = requests.get('https://chas.tv/channel/rossiya-1')
+    rs = r.search(resp.text)
+    if rs:
+        CHASTV_QUERY = rs.group()
+
+
 class URLS(object):
-    @classmethod
-    def sts(self):
-        return ''
+    ntv_re = re.compile('\/\/mob3\-ntv\.cdnvideo\.ru\/ntv\/smil\:ntvair003\.smil\/playlist\.m3u8\?e\=[0-9]+\&md5=[^\']+')
+    five_re = re.compile('\/watch\?v=[^"]+')
+
 
     @classmethod
-    def tnt(self):
-        return ''
+    def sts(cls):
+        return 'http://178.162.218.83:8081/chas/sts-hq.stream/chunks.m3u8?{}'.format(CHASTV_QUERY)
 
     @classmethod
-    def ntv(self):
+    def tnt(cls):
+        url = ''
+        resp = requests.get('http://192.168.1.1:8080/tnt.json')
+        f = open('cache/storage.json', 'rw+')
+        fc = f.read()
+        st = {}
+        if fc:
+            st = json.loads(fc)
+
+        try:
+            rsp = list(requests.get(resp.json['live_streams']['hls'][0]['url']).iter_lines())
+            rsp.reverse()
+            for st in rsp:
+                if st:
+                    url = st.split('?')[0]
+                    st['tnt_url'] = url
+                    f.write(json.dumps(st))
+
+        except Exception:
+            url = st.get('tnt_url')
+
+        f.close()
+
+        url = url or 'http://cdn-01.bonus-tv.ru/btv/sm-tnt/type/user/devname/LG-SmartTV/devid/LG-1477141994/eol/20200101T0000/hash/ec3a7b7757181408093b5c1ee40a288028a9ba15/chunklist_b2128000.m3u8?fake'
+
+        return url
+
+    @classmethod
+    def ntv(cls):
         res = requests.get('http://www.ntv.ru/air/')
-        r = re.compile("\/\/mob3\-ntv\.cdnvideo\.ru\/ntv\/smil\:ntvair003\.smil\/playlist\.m3u8\?e\=[0-9]+\&md5=[^']+")
-        sr = r.search(res.text)
+        sr = cls.ntv_re.search(res.text)
         if sr:
             url = sr.group().replace('playlist', 'chunklist_b1500000_DVR')
             return 'http:{}&hls_proxy_host=pub4.rtmp.s01.l.ntv'.format(url)
         return ''
 
     @classmethod
-    def five(self):
+    def five(cls):
+        resp = requests.get('https://www.youtube.com/channel/UCGM8ZTtduKll7X8RiGe6N8g')
+        sr = cls.five_re.search(resp.text)
+        if sr:
+            return 'https://www.youtube.com{}'.format(sr.group())
         return ''
 
     @classmethod
     def che(self):
-        return ''
+        return 'http://178.162.205.85:8081/chas/perec-hq.stream/playlist.m3u8?{}'.format(CHASTV_QUERY)
 
     @classmethod
     def x2(self):
-        return ''
+        return 'http://178.162.205.85:8081/chas/dva-hq.stream/playlist.m3u8?{}'.format(CHASTV_QUERY)
 
     @classmethod
     def pyatnica(self):
-        return ''
-
-    @classmethod
-    def fashiontv(self):
-        return ''
+        return 'http://178.162.218.87:8081/chas/pyatnica.stream/playlist.m3u8?{}'.format(CHASTV_QUERY)
 
 
 CHANNELS = [
@@ -167,22 +213,32 @@ CHANNELS = [
     [
         'Fashion TV',
         'https://www.youtube.com/watch?v=MyDCoVf9nVE',
-        'UHD',
+        'FHD',
         'fashion_tv'
     ]
 ]
 
+
 class TVView(QWidget):
     rendered = False
     playlist = []
+    chastv_re = re.compile('wmsAuthSign\=[^"^ ]+')
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self._timer)
+        self.timer.start(600000)
+        update_chastv(self.chastv_re)
 
         for channel in CHANNELS:
             img = 'img/channels/{}.png'.format(channel[3])
             title = '{} [{}]'.format(channel[0], channel[2])
             self.playlist.append([channel[1], title, img])
+
+    def _timer(self):
+        update_chastv(self.chastv_re)
 
     def render(self):
         print('RENDER')
@@ -210,7 +266,7 @@ class TVView(QWidget):
         if event.key() in (Qt.Key_Escape, Qt.Key_Right):
             self.window().categories.show()
             self.window().categories.widget().setFocus()
-        elif event.key() == Qt.Key_Return:
+        elif event.key() == Qt.Key_Return and not self.window().player.is_playing:
             self.window().player.play()
             self.window().player.pause()
         super().keyPressEvent(event)

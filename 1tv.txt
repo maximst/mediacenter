@@ -1,0 +1,4 @@
+ 
+http://json-api.1internet.tv/1tv-json-api/projects/list?rubrics=yes - список всех проектов
+
+http://json-api.1internet.tv/1tv-json-api/projects/video?id=5856&offset=0&limit=10&rubric=91 - список всех выпусков данного проекта

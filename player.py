@@ -1,3 +1,5 @@
+import time
+
 import mpv
 import conf
 from PyQt5.QtWidgets import *
@@ -29,6 +31,7 @@ class ControlButton(QPushButton):
         self.click_handler(self)
 
     def keyPressEvent(self, event):
+        self.window().last_control_time = time.time()
         if event.key() == Qt.Key_Return:
             self.click()
         elif event.key() == Qt.Key_Down:
@@ -74,6 +77,7 @@ class Playlist(QListWidget):
         raise NotImplementedError
 
     def keyPressEvent(self, event):
+        self.window().last_control_time = time.time()
         if event.key() == Qt.Key_Up:
             self.playlist_up()
         elif event.key() == Qt.Key_Down:

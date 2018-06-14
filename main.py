@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+import time
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -12,6 +13,7 @@ from tv import TVView
 
 class Main(QMainWindow):
     current_view = None
+    last_control_time = time.time()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -60,6 +62,15 @@ class Main(QMainWindow):
         #        log_handler=print)
         #player.play(sys.argv[1])
 
+        self.timer = QTimer()
+        self.timer.timeout.connect(self._timer)
+        self.timer.start(1000)
+
+    def _timer(self):
+        if (time.time() - self.last_control_time) > 7 and not self.play_control.isHidden():
+            self.play_control.hide()
+            self.container.setFocus()
+
     def _show_view(self, view_name):
         view_class = getattr(self, view_name+'_class')
         view = getattr(self, view_name)
@@ -85,6 +96,7 @@ class Main(QMainWindow):
         self._show_view('tv')
 
     def keyPressEvent(self, event):
+        self.last_control_time = time.time()
         if event.key() == Qt.Key_Right and self.current_view.rendered:
             self._show_view(self.current_view)
         elif event.key() == Qt.Key_Escape and self.player.is_playing:
