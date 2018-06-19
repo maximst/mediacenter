@@ -1,5 +1,6 @@
 import os
 import gc
+import time
 import json
 import pickle
 import urllib
@@ -271,7 +272,8 @@ class YouTubeView(QWidget):
         super().__init__(parent)
         if os.path.isfile('cache/cookies'):
             with open('cache/cookies', 'rb') as f:
-                self.api.cookies = requests.utils.cookiejar_from_dict(pickle.load(f))
+                self.cookies = pickle.load(f)
+                self.api.cookies = requests.utils.cookiejar_from_dict(self.cookies)
 
         #self.parent = parent
         self.search = QLineEdit()
@@ -312,16 +314,18 @@ class YouTubeView(QWidget):
 
     def get(self, *args, **kwargs):
         kwargs['headers'] = {'Content-Type': 'application/json'}
-        res = self.api.get(*args, **kwargs)
+        res = self.api.get(*args, **kwargs, cookies=self.cookies)
         with open('cache/cookies', 'wb+') as f:
-            pickle.dump(requests.utils.dict_from_cookiejar(self.api.cookies), f)
+            self.cookies.update(requests.utils.dict_from_cookiejar(self.api.cookies))
+            pickle.dump(self.cookies, f)
         return res
 
     def post(self, *args, **kwargs):
         kwargs['headers'] = {'Content-Type': 'application/json'}
-        res = self.api.post(*args, **kwargs)
+        res = self.api.post(*args, **kwargs, cookies=self.cookies)
         with open('cache/cookies', 'wb+') as f:
-            pickle.dump(requests.utils.dict_from_cookiejar(self.api.cookies), f)
+            self.cookies.update(requests.utils.dict_from_cookiejar(self.api.cookies))
+            pickle.dump(self.cookies, f)
         return res
 
     #def show(self):
@@ -342,6 +346,7 @@ class YouTubeView(QWidget):
 
     def keyPressEvent(self, event, elem=None):
         print(event.key())
+        print(self.cookies)
         w = None
         _si = lambda: True
 
@@ -392,6 +397,7 @@ class YouTubeView(QWidget):
             self.render_channel(item.channel_id, item.tracking_params)
 
     def play(self, video_id, playlist_id, title, img):
+        self.get('https://www.youtube.com/watch?v={}'.format(video_id))
         data = self.api_data.copy()
         data.pop('browseId', None)
         data.update({
@@ -487,6 +493,8 @@ class YouTubeView(QWidget):
         self.channel_rendered = True
 
     def recomendations(self, browse_id=None, tracking_params=None, init=False):
+        _tmp = self.get('https://www.youtube.com/tv').text
+        del _tmp
         url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'browse', conf.YOUTUBE_API_KEY)
         data = self.api_data.copy()
         data['browseId'] = browse_id or 'default'
@@ -571,6 +579,8 @@ class YouTubeView(QWidget):
         self.do_search(False)
 
     def do_search(self, init=True):
+        _null = self.get('https://www.youtube.com/results', params={'search_query': self.search.text()}).text
+        del _null
         url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'search', conf.YOUTUBE_API_KEY)
         data = self.api_data.copy()
         data.pop('browseId', None)

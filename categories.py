@@ -5,7 +5,7 @@ from PyQt5.QtGui import *
 # ('path/to/image.png', handler)
 CATEGORIES = (
     ('img/categories/tv.png', 'show_tv'),
-    ('img/categories/1tv.png', ''),
+    ('img/categories/1tv.png', 'show_onetv'),
     ('img/categories/russia1.png', ''),
     ('img/categories/youtube.png', 'show_youtube')
 )

@@ -9,6 +9,7 @@ from player import Player
 from categories import Categories
 from youtube import YouTubeView
 from tv import TVView
+from onetv import OneTvView
 
 
 class Main(QMainWindow):
@@ -22,8 +23,10 @@ class Main(QMainWindow):
         self.youtube = YouTubeView(self)
         self.tv_class = TVView
         self.tv = TVView(self)
+        self.onetv = OneTvView(self)
+        self.onetv_class = OneTvView
 
-        self.views = ('youtube', 'tv')
+        self.views = ('youtube', 'tv', 'onetv')
 
         #self.container = MainWidget(self)
         self.container = QScrollArea()
@@ -81,13 +84,14 @@ class Main(QMainWindow):
             view = view_class(self)
             setattr(self, view_name, view)
 
+        view.setFocus()
         if view.rendered:
             view.show()
         else:
             view.render()
         self.categories.hide()
-        view.setFocus()
         self.current_view = view
+        self.current_view_name = view_name
 
     def show_youtube(self):
         self._show_view('youtube')
@@ -95,10 +99,13 @@ class Main(QMainWindow):
     def show_tv(self):
         self._show_view('tv')
 
+    def show_onetv(self):
+        self._show_view('onetv')
+
     def keyPressEvent(self, event):
         self.last_control_time = time.time()
         if event.key() == Qt.Key_Right and self.current_view.rendered:
-            self._show_view(self.current_view)
+            self._show_view(self.current_view_name)
         elif event.key() == Qt.Key_Escape and self.player.is_playing:
             if not self.play_control.isHidden():
                 self.play_control.hide()
