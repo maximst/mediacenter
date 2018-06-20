@@ -392,11 +392,11 @@ class YouTubeView(QWidget):
 
     def activate_item(self, item):
         if hasattr(item, 'video_id') and item.video_id:
-            self.play(item.video_id, item.playlist_id, item.title, item.img)
+            self.play(item.video_id, item.playlist_id, item.yt_params, item.title, item.img)
         elif hasattr(item, 'channel_id') and item.channel_id:
             self.render_channel(item.channel_id, item.tracking_params)
 
-    def play(self, video_id, playlist_id, title, img):
+    def play(self, video_id, playlist_id, params, title, img):
         self.get('https://www.youtube.com/watch?v={}'.format(video_id))
         data = self.api_data.copy()
         data.pop('browseId', None)
@@ -406,6 +406,9 @@ class YouTubeView(QWidget):
             'playlistId': playlist_id,
             'videoId': video_id
         })
+
+        if params:
+            data['params'] = params
 
         url = '{}{}?key={}'.format(conf.YOUTUBE_API, 'next', conf.YOUTUBE_API_KEY)
         res = self.post(url, data=json.dumps(data))
@@ -668,7 +671,8 @@ class YouTubeView(QWidget):
                 img = 'img/youtube_default.png'
                 print(i, images)
             item.setTextAlignment(Qt.AlignHCenter | Qt.AlignTop)
-            item.video_id = it.get('videoId')
+            item.video_id = it.get('videoId', it.get('navigationEndpoint', {}).get('watchEndpoint', {}).get('videoId'))
+            item.yt_params = it.get('navigationEndpoint', {}).get('watchEndpoint', {}).get('params')
             item.channel_id = it.get('channelId')
             item.tracking_params = it.get('trackingParams')
             item.playlist_id = it.get('navigationEndpoint', {}).get('watchEndpoint', {}).get('playlistId')

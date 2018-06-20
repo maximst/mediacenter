@@ -79,20 +79,39 @@ class OneTvView(QWidget):
         self.projects.setFocus()
 
     def show_project_details(self, item):
-        project = QListWidget()
-        project.setIconSize(QSize(320, 320))
-        project.itemActivated.connect(self.play)
-        project.setWordWrap(True)
-        project.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        project.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        r = requests.get('http://json-api.1internet.tv/1tv-json-api/projects/video?id={}&offset=0&limit=20&rubric={}'.format(item.project_id, item.rubrics[0]['rub_id']))
+        self.project = QListWidget()
+        self.project.setIconSize(QSize(320, 320))
+        self.project.itemActivated.connect(self.play)
+        self.project.setWordWrap(True)
+        self.project.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.project.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.playlist = []
+
+        self.update_project_details(item)
+
+        self.layout().addWidget(self.project)
+        self.projects.hide()
+        self.project.item(0).setSelected(True)
+        self.project.setFocus()
+
+    def update_project_details(self, item):
+        index = hasattr(item, 'index') and item.index+1 or 0
+        r = requests.get(
+            'http://json-api.1internet.tv/1tv-json-api/projects/video',
+            params={
+                'id': item.project_id,
+                'offset': index,
+                'limit': 7,
+                'rubric': item.rubrics[0]['rub_id']
+            }
+        )
         r = r.json()
 
-        pool = Pool(processes=16)
+        pool = Pool(processes=7)
         images = pool.map(cache_image, [i.get('video_image') for i in r.get('videos', [])])
         pool.terminate()
 
-        self.playlist = []
+        next_items = []
         for i, video in enumerate(r.get('videos', [])):
             tl = video['video_name'].split()
             for c in range(len(tl)):
@@ -100,19 +119,32 @@ class OneTvView(QWidget):
                     tl.insert(c, '\n')
                     break
             title = ' '.join(tl)
-            item = QListWidgetItem(QIcon(images[i]), title)
+            _item = QListWidgetItem(QIcon(images[i]), title)
             url = [v['src'] for v in video['source'] if v['src'].endswith('m3u8')][0]
-            item.url = url
-            project.addItem(item)
+            _item.url = url
+            _item.index = i+index
+            _item.rubrics = item.rubrics
+            _item.project_id = item.project_id
+            self.project.addItem(_item)
             self.playlist.append([url, video['video_name'], images[i]])
+            next_items.append([url, video['video_name'], images[i]])
 
-        self.layout().addWidget(project)
-        self.projects.hide()
-        project.item(0).setSelected(True)
-        project.setFocus()
+        def next_playlist():
+            return self.update_project_details(_item)
+
+        if next_items:
+            self.window().player.new_playlist_items = next_playlist
+        else:
+            self.window().player.new_playlist_items = lambda: []
+
+        return next_items
 
     def play(self, item):
         print('PLAY')
+        self.window().player.playlist = self.playlist
+        self.window().player.current_index = item.index
+        self.window().player.play()
+        self.window().setFocus()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape and self.layout().count() > 1:
@@ -120,5 +152,15 @@ class OneTvView(QWidget):
         elif event.key() == Qt.Key_Escape:
             self.window().categories.show()
             self.window().categories.widget().setFocus()
+        elif (event.key() == Qt.Key_Down and self.projects.isHidden()
+              and self.project.currentRow() == self.project.count() - 1):
+            self.update_project_details(self.project.item(self.project.currentRow()))
         else:
             super().keyPressEvent(event)
+
+    def setFocus(self):
+        super().setFocus()
+        if self.projects.isHidden():
+            self.project.setFocus()
+        else:
+            self.projects.setFocus()

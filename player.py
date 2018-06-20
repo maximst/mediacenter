@@ -60,6 +60,7 @@ class Playlist(QListWidget):
         self.setWrapping(False)
         self.setWordWrap(True)
         self.setIconSize(QSize(240, 320))
+        self.setFixedHeight(300)
         self.itemActivated.connect(self.activate_item)
 
         self.setStyleSheet("""
@@ -176,6 +177,9 @@ class Player(object):
     def playlist_up(self):
         self.play_btn.setFocus()
 
+    def get_current(self):
+        return self.current_index
+
     def play_current_item(self, item):
         self.current_index = self.playlist_ctrl.indexFromItem(item).row()
         self.play()
@@ -191,7 +195,6 @@ class Player(object):
 
     def stop(self):
         self.is_playing = False
-        self.pause()
         #self._player.quit_watch_later(0)
         self._player.quit()
         self._player.terminate()
@@ -221,8 +224,9 @@ class Player(object):
             self._player.event_callback('end_file')(self.next_play_event)
             return True
 
-    def select_current(self):
-        self.playlist_ctrl.item(self.current_index).setSelected(True)
+    def select_current(self, index=None):
+        self.playlist_ctrl.item(index or self.current_index).setSelected(True)
+        self.playlist_ctrl.setCurrentRow(index or self.current_index)
 
     @property
     def playlist(self):
@@ -243,11 +247,10 @@ class Player(object):
         return []
 
     def update_playlist(self):
-        new_items = self.new_playlist_items()
         index = len(self.playlist) - 1
+        new_items = self.new_playlist_items()
         self.playlist += new_items
-        self.playlist_ctrl.item(index).setSelected(True)
-        self.playlist_ctrl.setFocus()
+        self.select_current(index)
         return
 
     def next_play_event(self, event):
