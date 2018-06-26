@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from decorators import click_protection
 
 # ('path/to/image.png', handler)
 CATEGORIES = (
@@ -22,6 +23,10 @@ class CategoriesList(QListWidget):
     def connect(self, item):
         if hasattr(item, 'handler') and item.handler:
             item.handler()
+
+    @click_protection
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)
 
 
 class Categories(QDockWidget):
@@ -62,3 +67,7 @@ class Categories(QDockWidget):
 
         self.categories_list.item(0).setSelected(True)
         self.categories_list.setFocus()
+
+    @click_protection
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)

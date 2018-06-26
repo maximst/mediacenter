@@ -2,6 +2,7 @@ import time
 
 import mpv
 import conf
+from decorators import click_protection
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -30,6 +31,7 @@ class ControlButton(QPushButton):
     def _click(self, i):
         self.click_handler(self)
 
+    @click_protection
     def keyPressEvent(self, event):
         self.window().last_control_time = time.time()
         if event.key() == Qt.Key_Return:
@@ -77,6 +79,7 @@ class Playlist(QListWidget):
     def playlist_up(self):
         raise NotImplementedError
 
+    @click_protection
     def keyPressEvent(self, event):
         self.window().last_control_time = time.time()
         if event.key() == Qt.Key_Up:
@@ -116,7 +119,7 @@ class Player(object):
             'ytdl_format': "bestvideo[height<=1080][vcodec!=vp9]+bestaudio/best[height<=1080]",
             'vo': conf.MPV_VO,
             'hwdec_codecs': 'all',
-            'video_zoom': -0.1,
+            'video_zoom': -0.05,
             'log_handler': print
         }
         if hasattr(conf, 'MPV_HWDEC'):
@@ -156,6 +159,7 @@ class Player(object):
         self.buttons.layout.addWidget(self.prev_btn)
         self.buttons.layout.addWidget(self.play_btn)
         self.buttons.layout.addWidget(self.next_btn)
+        self.buttons.keyPressEvent = click_protection(self.buttons.keyPressEvent, s=self.buttons)
 
         self.control.widget().layout().addWidget(self.buttons)
 

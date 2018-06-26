@@ -5,6 +5,7 @@ import time
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
+from decorators import click_protection
 from player import Player
 from categories import Categories
 from youtube import YouTubeView
@@ -102,6 +103,7 @@ class Main(QMainWindow):
     def show_onetv(self):
         self._show_view('onetv')
 
+    @click_protection
     def keyPressEvent(self, event):
         self.last_control_time = time.time()
         if event.key() == Qt.Key_Right and self.current_view.rendered:

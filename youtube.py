@@ -5,6 +5,7 @@ import json
 import pickle
 import urllib
 import requests
+from decorators import click_protection
 from multiprocessing import Pool
 from pprint import pprint
 
@@ -56,6 +57,7 @@ class KeyboardButton(QPushButton):
         self.val = value
         self.clicked.connect(self._click)
 
+    @click_protection
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key_Down, Qt.Key_Up, Qt.Key_Left, Qt.Key_Right, Qt.Key_Escape):
             self.parent().keyPressEvent(event, self)
@@ -103,6 +105,7 @@ class Keyboard(QWidget):
         self.setLayout(self.layout)
         self.input_field = input_field
 
+    @click_protection
     def keyPressEvent(self, event, button=None):
         row_count = self.layout.rowCount()
         cols_count = self.layout.columnCount()
@@ -180,6 +183,7 @@ class KeyboardTips(QListWidget):
             }
         ''')
 
+    @click_protection
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Right:
             self.parent().keyPressEvent(event, self)
@@ -213,6 +217,7 @@ class ResultList(QListWidget):
             }
         ''')
 
+    @click_protection
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Right:
             selected = self.selectedItems()[0]
@@ -344,6 +349,7 @@ class YouTubeView(QWidget):
        # w.setFocus()
         #w.setCurrentRow(1)
 
+    @click_protection
     def keyPressEvent(self, event, elem=None):
         print(event.key())
         print(self.cookies)
@@ -541,6 +547,7 @@ class YouTubeView(QWidget):
         self.rec_continuation = continuations[0].get('nextContinuationData', {}).get('continuation')
         self.window().container.ensureWidgetVisible(first_w, 0, 0)
 
+    @click_protection
     def search_activated(self, event):
         if event.key() == Qt.Key_Return:
             self.clear_results()

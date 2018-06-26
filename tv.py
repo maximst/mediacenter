@@ -1,6 +1,7 @@
 import re
 import requests
 import json
+from decorators import click_protection
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -262,6 +263,7 @@ class TVView(QWidget):
         self.window().player.pause()
         self.window().setFocus()
 
+    @click_protection
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key_Escape, Qt.Key_Right):
             self.window().categories.show()

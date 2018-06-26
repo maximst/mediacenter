@@ -2,6 +2,7 @@ import os
 import json
 import urllib
 import requests
+from decorators import click_protection
 from multiprocessing import Pool
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -44,6 +45,7 @@ class OneTvView(QWidget):
             }
         ''')
         self.projects.itemActivated.connect(self.show_project_details)
+        self.projects.keyPressEvent = click_protection(self.projects.keyPressEvent, s=self.projects)
         self.layout().addWidget(self.projects)
 
     def render(self):
@@ -85,6 +87,7 @@ class OneTvView(QWidget):
         self.project.setWordWrap(True)
         self.project.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.project.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.project.keyPressEvent = click_protection(self.project.keyPressEvent, s=self.project)
         self.playlist = []
 
         self.update_project_details(item)
@@ -146,7 +149,9 @@ class OneTvView(QWidget):
         self.window().player.play()
         self.window().setFocus()
 
+    @click_protection
     def keyPressEvent(self, event):
+        print('onetv', event.key())
         if event.key() == Qt.Key_Escape and self.layout().count() > 1:
             self.show_projects_list(init=False)
         elif event.key() == Qt.Key_Escape:
