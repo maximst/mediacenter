@@ -203,6 +203,7 @@ class Player(object):
         self._player.quit()
         self._player.terminate()
         self.setup_player()
+        self.hide_loader(None)
 
     def pause(self):
         self._player.pause = True
@@ -225,8 +226,13 @@ class Player(object):
             self._player.play(self.url)
             self.select_current()
             self.is_playing = True
+            self.control.window().overlay.show()
             self._player.event_callback('end_file')(self.next_play_event)
+            self._player.event_callback('file_loaded')(self.hide_loader)
             return True
+
+    def hide_loader(self, event):
+        self.control.window().overlay.hide()
 
     def select_current(self, index=None):
         self.playlist_ctrl.item(index or self.current_index).setSelected(True)

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import sys
 import time
+import math
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 
 from decorators import click_protection
 from player import Player
@@ -11,6 +13,56 @@ from categories import Categories
 from youtube import YouTubeView
 from tv import TVView
 from onetv import OneTvView
+
+
+class Overlay(QWidget):
+    def __init__(self, parent = None):
+        QWidget.__init__(self, parent)
+        palette = QPalette(self.palette())
+        palette.setColor(palette.Background, Qt.transparent)
+        self.setPalette(palette)
+        self.counter = 0
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.timerEvent)
+        self.timer.stop()
+
+    def paintEvent(self, event):
+        painter = QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillRect(event.rect(), QBrush(QColor(0, 0, 0, 100)))
+        painter.setPen(QPen(Qt.NoPen))
+
+        for i in range(6):
+            if self.counter % 6 == i:
+                painter.setBrush(QBrush(QColor(127, 255, 127)))
+            elif self.counter % 6 == i+1:
+                painter.setBrush(QBrush(QColor(127, 200, 127)))
+            elif self.counter % 6 == i+2:
+                painter.setBrush(QBrush(QColor(127, 155, 127)))
+            else:
+                painter.setBrush(QBrush(QColor(127, 127, 127)))
+            painter.drawEllipse(
+                self.width()/2 + 30 * math.cos(2 * math.pi * i / 6.0) - 10,
+                self.height()/2 + 30 * math.sin(2 * math.pi * i / 6.0) - 10,
+                20, 20)
+
+        painter.end()
+
+    def showEvent(self, event):
+        self.counter = 0
+        self.timer.start(120)
+
+    def timerEvent(self):
+        self.counter += 1
+        self.update()
+        if self.counter == 60:
+            self.counter = 0
+
+    def hideEvent(self, event):
+        #self.killTimer(self.timer)
+        self.timer.stop()
+        self.counter = 0
 
 
 class Main(QMainWindow):
@@ -69,6 +121,9 @@ class Main(QMainWindow):
         self.timer = QTimer()
         self.timer.timeout.connect(self._timer)
         self.timer.start(1000)
+        self.overlay = Overlay(self.centralWidget())
+        self.overlay.resize(1920, 1080)
+        self.overlay.hide()
 
     def _timer(self):
         if (time.time() - self.last_control_time) > 7 and not self.play_control.isHidden():
@@ -86,13 +141,14 @@ class Main(QMainWindow):
             setattr(self, view_name, view)
 
         view.setFocus()
-        if view.rendered:
-            view.show()
-        else:
-            view.render()
+        view.show()
         self.categories.hide()
+        self.overlay.show()
+        if not view.rendered:
+            view.render()
         self.current_view = view
         self.current_view_name = view_name
+        self.overlay.hide()
 
     def show_youtube(self):
         self._show_view('youtube')
