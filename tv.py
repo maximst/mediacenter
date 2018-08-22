@@ -38,8 +38,14 @@ class URLS(object):
     def tnt(cls):
         url = ''
         resp = requests.get('http://192.168.1.1:8080/tnt.json')
-        f = open('cache/storage.json', 'rw+')
-        fc = f.read()
+
+        try:
+            f = open('cache/storage.json', 'r')
+            fc = f.read()
+            f.close()
+        except:
+            fc = None
+
         st = {}
         if fc:
             st = json.loads(fc)
@@ -51,12 +57,12 @@ class URLS(object):
                 if st:
                     url = st.split('?')[0]
                     st['tnt_url'] = url
+                    f = open('cache/storage.json', 'w+')
                     f.write(json.dumps(st))
+                    f.close()
 
         except Exception:
             url = st.get('tnt_url')
-
-        f.close()
 
         url = url or 'http://cdn-01.bonus-tv.ru/btv/sm-tnt/type/user/devname/LG-SmartTV/devid/LG-1477141994/eol/20200101T0000/hash/ec3a7b7757181408093b5c1ee40a288028a9ba15/chunklist_b2128000.m3u8?fake'
 
