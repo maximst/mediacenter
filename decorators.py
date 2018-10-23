@@ -1,6 +1,7 @@
 import time
 
 def click_protection(f, s=None):
+    return f
     pause = 0.2
     def ws(self, event, *args, **kwargs):
         if not hasattr(self, 'keys_time'):
