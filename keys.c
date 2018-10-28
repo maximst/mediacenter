@@ -26,7 +26,8 @@ void mainloop() {
         fscanf(file, "%ld\n", &key_sec);
         fscanf(file, "%ld\n", &key_nsec);
 
-        if (keydown && ((spec.tv_sec - key_nsec) >= 373e6 || (spec.tv_sec > key_sec && key_nsec < 620e6))) {
+//        printf("QQQQ: %i %ld %ld\n", keydown, spec.tv_nsec, key_nsec);
+        if (keydown && ((spec.tv_nsec - key_nsec) >= 283e6 || (spec.tv_sec > key_sec && spec.tv_nsec > 273e6))) {
             printf("1: %ld %ld\n", spec.tv_nsec, key_nsec);
             sprintf(cmd, "DISPLAY=:0 xte 'keyup %s' #1\n", prev_key);
             printf(cmd);
@@ -49,7 +50,7 @@ void mainloop() {
         strncpy(prev_key, current_key, 8);
 
         fseek(file, 0, SEEK_SET);
-        usleep(19763);
+        usleep(19753);
     }
 }
 
