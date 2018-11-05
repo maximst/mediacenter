@@ -22,7 +22,7 @@ void mainloop() {
     long key_sec, key_nsec, *prev_nsec;
     struct timespec spec;
     bool keydown = FALSE;
-    const char *keys[8][2][48] = {
+    const char keys[14][2][47] = {
         {"DISPLAY=:0 xte 'keydown Up'\n", "DISPLAY=:0 xte 'keyup Up'\n"},
         {"DISPLAY=:0 xte 'keydown Right'\n", "DISPLAY=:0 xte 'keyup Right'\n"},
         {"DISPLAY=:0 xte 'keydown Down'\n", "DISPLAY=:0 xte 'keyup Down'\n"},
@@ -36,7 +36,7 @@ void mainloop() {
         {"DISPLAY=:0 xte 'keydown KP_Left'\n", "DISPLAY=:0 xte 'keyup KP_Left'\n"},
         {"DISPLAY=:0 xte 'keydown Return'\n", "DISPLAY=:0 xte 'keyup Return'\n"},
         {"DISPLAY=:0 xte 'keydown Escape'\n", "DISPLAY=:0 xte 'keyup Escape'\n"},
-        {"DISPLAY=:0 xte 'keydown Control_L' 'keydown M'\n", "DISPLAY=:0 xte 'keyup M' 'keyup Control_L'\n"},
+        {"DISPLAY=:0 xte 'keydown Control_L' 'keydown M'\n", "DISPLAY=:0 xte 'keyup M' 'keyup Control_L'\n"}
     };
 
     file = fopen("/var/run/keys", "r");
@@ -47,33 +47,35 @@ void mainloop() {
 
     while (TRUE) {
         clock_gettime(CLOCK_REALTIME, &spec);
-        fscanf(file, "%i\n", current_key);
+        fscanf(file, "%i\n", &current_key);
         fscanf(file, "%ld\n", &key_sec);
         fscanf(file, "%ld\n", &key_nsec);
 
 //        printf("QQQQ: %i %ld %ld\n", keydown, spec.tv_nsec, key_nsec);
         if (keydown && ((spec.tv_nsec - key_nsec) >= 283e6 || (spec.tv_sec > key_sec && spec.tv_nsec > 273e6))) {
-            if (current_key == _2NDFX) {
+            if (prev_key == _2NDFX) {
                 _2ndfx = abs(_2ndfx - _2NDFX);
             } else {
                 printf("1: %ld %ld\n", spec.tv_nsec, key_nsec);
                 //sprintf(cmd, "DISPLAY=:0 xte 'keyup %s' #1\n", prev_key);
-                printf(keys[current_key + _2ndfx][1]);
-                system(keys[current_key + _2ndfx][1]);
+                printf(&keys[current_key + _2ndfx][1]);
+                system(&keys[current_key + _2ndfx][1]);
             }
             prev_nsec = key_nsec;
             keydown = FALSE;
         }
 
-        if ((strcmp(current_key, prev_key) != 0) || (!keydown && prev_nsec != key_nsec)) {
+        if (current_key != prev_key || (!keydown && prev_nsec != key_nsec)) {
             printf("2: %ld %ld\n", prev_nsec, key_nsec);
             //sprintf(cmd, "DISPLAY=:0 xte 'keyup %s' #2\n", prev_key);
             printf(keys[prev_key + _2ndfx][1]);
             system(keys[prev_key + _2ndfx][1]);
             keydown = TRUE;
-            //sprintf(cmd, "DISPLAY=:0 xte 'keydown %s' #3\n", current_key);
-            printf(keys[current_key + _2ndfx][0]);
-            system(keys[current_key + _2ndfx][0]);
+            if (current_key != _2NDFX) {
+                //sprintf(cmd, "DISPLAY=:0 xte 'keydown %s' #3\n", current_key);
+                printf(&keys[current_key + _2ndfx][0]);
+                system(&keys[current_key + _2ndfx][0]);
+            }
         }
 
         prev_key = current_key;
