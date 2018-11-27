@@ -141,11 +141,10 @@ class Main(QMainWindow):
             setattr(self, view_name, view)
 
         view.setFocus()
-        view.show()
-        self.categories.hide()
-        self.overlay.show()
         if not view.rendered:
             view.render()
+        view.show()
+        self.categories.hide()
         self.current_view = view
         self.current_view_name = view_name
         self.overlay.hide()

@@ -219,7 +219,7 @@ class Player(object):
             self.url = self.playlist[self.current_index][0]
             if callable(self.url):
                 self.url = self.url()
-        except KeyError:
+        except IndexError:
             return False
         else:
             self.is_playing and self.stop() or self.setup_player()
