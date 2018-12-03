@@ -19,7 +19,7 @@ class Overlay(QWidget):
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
         palette = QPalette(self.palette())
-        palette.setColor(palette.Background, Qt.transparent)
+        palette.setColor(palette.Background, QColor(10, 10, 10))
         self.setPalette(palette)
         self.counter = 0
         self.timer = QTimer()

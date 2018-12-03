@@ -10,19 +10,20 @@ from PyQt5.QtGui import *
 CHASTV_QUERY = ''
 
 
-def update_chastv(r):
-    r = r or re.compile('wmsAuthSign\=[^"^ ]+')
+def update_chastv(r=None):
+    r = r or re.compile('var\s*signature\s*\=\s*\"([^"^ ]+)')
+    #r = r or re.compile('wmsAuthSign\=[^"^ ]+')
     global CHASTV_QUERY
 
     resp = requests.get('http://chas.tv/channel/pervyi')
     rs = r.search(resp.text)
     if rs:
-        CHASTV_QUERY = rs.group()
+        CHASTV_QUERY = 'wmsAuthSign={}'.format((rs.groups() or (None,))[0])
 
     resp = requests.get('https://chas.tv/channel/rossiya-1')
     rs = r.search(resp.text)
     if rs:
-        CHASTV_QUERY = rs.group()
+        CHASTV_QUERY = 'wmsAuthSign={}'.format((rs.groups() or (None,))[0])
 
 
 class URLS(object):
@@ -33,6 +34,10 @@ class URLS(object):
     @classmethod
     def sts(cls):
         return 'http://178.162.218.83:8081/chas/sts-hq.stream/chunks.m3u8?{}'.format(CHASTV_QUERY)
+
+    @classmethod
+    def tnt_sd(cls):
+        return 'http://178.162.218.87:8081/chas/tnt-hq.stream/chunks.m3u8?{}'.format(CHASTV_QUERY)
 
     @classmethod
     def tnt(cls):
@@ -51,20 +56,23 @@ class URLS(object):
             st = json.loads(fc)
 
         try:
-            rsp = list(requests.get(resp.json['live_streams']['hls'][0]['url']).iter_lines())
+            data = json.loads(resp.text)
+            rsp = list(requests.get(data['live_streams']['hls'][0]['url']).iter_lines())
             rsp.reverse()
-            for st in rsp:
-                if st:
-                    url = st.split('?')[0]
+            for s in rsp:
+                if s.startswith(b'http'):
+                    url = s.split(b'?')[0].decode()
                     st['tnt_url'] = url
                     f = open('cache/storage.json', 'w+')
                     f.write(json.dumps(st))
                     f.close()
+                    break
 
-        except Exception:
+        except Exception as e:
+            print(e)
             url = st.get('tnt_url')
 
-        url = url or 'http://cdn-01.bonus-tv.ru/btv/sm-tnt/type/user/devname/LG-SmartTV/devid/LG-1477141994/eol/20200101T0000/hash/ec3a7b7757181408093b5c1ee40a288028a9ba15/chunklist_b2128000.m3u8?fake'
+        url = url or st.get('tnt_url') or 'http://cdn-01.bonus-tv.ru/btv/sm-tnt/type/user/devname/LG-SmartTV/devid/LG-1477141994/eol/20200101T0000/hash/ec3a7b7757181408093b5c1ee40a288028a9ba15/chunklist_b2128000.m3u8?fake'
 
         return url
 
@@ -105,13 +113,13 @@ CHANNELS = [
         'HD',
         'perviy'
     ],
-#    ['Россия 1', "http://192.168.1.1:8080/hls/russia_hd/playlist_vhig.m3u8", 'HD', 'rossia_1'],
-    [
-        'Россия 1',
-        'http://cdn-01.bonus-tv.ru/btv/russiahd/type/user/devname/LG-SmartTV/devid/LG-1469703292/eol/20200101T0000/hash/1b7599c0021067fe3590d9ed45db70712b2b1ef8/track_0_2000/playlist.m3u8',
-        'HD',
-        'rossia_1'
-    ],
+    ['Россия 1', "http://192.168.1.1:8080/hls/russia_hd/playlist_4.m3u8", 'HD', 'rossia_1'],
+#    [
+#        'Россия 1',
+#        'http://cdn-01.bonus-tv.ru/btv/russiahd/type/user/devname/LG-SmartTV/devid/LG-1469703292/eol/20200101T0000/hash/1b7599c0021067fe3590d9ed45db70712b2b1ef8/track_0_2000/playlist.m3u8',
+#        'HD',
+#        'rossia_1'
+#    ],
     [
         'СТС',
         URLS.sts,
@@ -124,6 +132,8 @@ CHANNELS = [
         'SD',
         'sts'
     ],
+    ['СТС LOVE', 'http://192.168.1.1:8080/hls-live10/streams/ctc-love/ctc-love3.m3u8', 'SD', 'sts_love'],
+    ['Домашний', 'http://192.168.1.1:8080/hls-live10/streams/ctc-dom/ctc-dom3.m3u8', 'SD', 'sts_dom'],
 #    ['ТНТ', "http://cdn-01.bonus-tv.ru/btv/sm-tnt/type/user/devname/LG-SmartTV/devid/LG-1477141994/eol/20200101T0000/hash/ec3a7b7757181408093b5c1ee40a288028a9ba15/chunklist_b2128000.m3u8", 'SD', 'tnt'],
     [
         'ТНТ',
@@ -131,9 +141,10 @@ CHANNELS = [
         'HD',
         'tnt'
     ],
+    ['ТНТ', URLS.tnt_sd, 'SD', 'tnt'],
     [
         'Звезда',
-        'https://cdn-01.bonus-tv.ru/zvezda/zvezda/type/none/eol/20200101T000000/hash/1/playlist.m3u8',
+        'https://cdn-01.bonus-tv.ru:8090/zvezda/tracks-v2a1/playlist.m3u8',
         'SD',
         'zvezda'
     ],
@@ -205,7 +216,7 @@ CHANNELS = [
         'HD',
         'rt_doc'
     ],
-    [
+    [    #chastv_re = re.compile('wmsAuthSign\=[^"^ ]+')
         '1HD Music Television',
         'https://cdn-01.bonus-tv.ru:8090/1HDmusic/tracks-v2a1/index.m3u8',
         'FHD',
@@ -219,7 +230,7 @@ CHANNELS = [
     ],
     [
         'Fashion TV',
-        'https://www.youtube.com/watch?v=MyDCoVf9nVE',
+        'https://stream-01.ix7.dailymotion.com/sec()/dm/3/x3m6nld/live-4.m3u8',
         'FHD',
         'fashion_tv'
     ]
@@ -229,7 +240,6 @@ CHANNELS = [
 class TVView(QWidget):
     rendered = False
     playlist = []
-    chastv_re = re.compile('wmsAuthSign\=[^"^ ]+')
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -237,7 +247,7 @@ class TVView(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self._timer)
         self.timer.start(600000)
-        update_chastv(self.chastv_re)
+        update_chastv()
 
         for channel in CHANNELS:
             img = 'img/channels/{}.png'.format(channel[3])
@@ -245,7 +255,7 @@ class TVView(QWidget):
             self.playlist.append([channel[1], title, img])
 
     def _timer(self):
-        update_chastv(self.chastv_re)
+        update_chastv()
 
     def render(self):
         print('RENDER')
