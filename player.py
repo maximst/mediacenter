@@ -66,6 +66,9 @@ class Playlist(QListWidget):
         self.itemActivated.connect(self.activate_item)
 
         self.setStyleSheet("""
+            Playlist {
+                margin: 0 50px 20px 30px;
+            }
             Playlist:item:selected {
                 background-color: rgb(70,70,70);
                 color: #fff;

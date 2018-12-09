@@ -15,7 +15,7 @@ CATEGORIES = (
 class CategoriesList(QListWidget):
     def __init__(self, *args, **kwsrgs):
         super().__init__(*args, **kwsrgs)
-        self.setFixedWidth(125)
+        self.setFixedWidth(180)
 
         self.setSelectionMode(QAbstractItemView.SingleSelection)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -45,7 +45,8 @@ class Categories(QDockWidget):
                 background-color: rgb(50,50,50);
                 color: #fff;
                 border: none;
-                margin-left: 20px;
+                margin-left: 65px;
+                margin-top: 5px;
             }
             CategoriesList:item:selected {
                 background-color: rgb(100,100,100);

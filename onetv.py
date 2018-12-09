@@ -36,6 +36,7 @@ class OneTvView(QWidget):
         self.setStyleSheet('''
             QListWidget {
                 font-size: 50px;
+                margin: 30px 50px;
             }
             QListWidget:item:focus:selected {
                 background-color: rgb(100,100,100);

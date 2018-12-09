@@ -272,6 +272,7 @@ class YouTubeView(QWidget):
         "oe": "utf-8",
         "q": ""
     }
+    cookies = {}
 
     def __init__(self, parent=None):
         super().__init__(parent)
