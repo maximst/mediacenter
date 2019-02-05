@@ -29,6 +29,7 @@ def update_chastv(r=None):
 class URLS(object):
     ntv_re = re.compile('\/\/mob3\-ntv\.cdnvideo\.ru\/ntv\/smil\:ntvair003\.smil\/playlist\.m3u8\?e\=[0-9]+\&md5=[^\']+')
     five_re = re.compile('\/watch\?v=[^"]+')
+    fashiontv_re = re.compile('sec=(?P<sec>[^"^&]+)')
 
 
     @classmethod
@@ -86,6 +87,15 @@ class URLS(object):
         return ''
 
     @classmethod
+    def fashiontv(cls):
+        res = requests.get('https://www.dailymotion.com/embed/video/x3m6nld')
+        sr = cls.fashiontv_re.search(res.text)
+        if sr:
+            sec = sr.groupdict().get('sec', '')
+            return 'https://stream-09.dc3.dailymotion.com/sec({sec})/dm/3/x3m6nld/s/live-4.m3u8'.format(sec=sec)
+        return ''
+
+    @classmethod
     def five(cls):
         resp = requests.get('https://www.youtube.com/channel/UCGM8ZTtduKll7X8RiGe6N8g')
         sr = cls.five_re.search(resp.text)
@@ -103,7 +113,7 @@ class URLS(object):
 
     @classmethod
     def pyatnica(self):
-        return 'http://178.162.218.87:8081/chas/pyatnica.stream/playlist.m3u8?{}'.format(CHASTV_QUERY)
+        return 'http://178.162.218.87:8081/chas/pyatnica-hq.stream/playlist.m3u8?{}'.format(CHASTV_QUERY)
 
 
 CHANNELS = [
@@ -218,19 +228,19 @@ CHANNELS = [
     ],
     [    #chastv_re = re.compile('wmsAuthSign\=[^"^ ]+')
         '1HD Music Television',
-        'https://cdn-01.bonus-tv.ru:8090/1HDmusic/tracks-v2a1/index.m3u8',
+        'https://cdn-01.bonus-tv.ru:8090/1HDmusic/tracks-v1a1/index.m3u8',
         'FHD',
         '1hd_music_television'
     ],
     [
         'World Fashion Channel',
-        'https://cdn-01.bonus-tv.ru:8090/wfcru/tracks-v1a1/index.m3u8',
+        'https://wfc.bonus-tv.ru/cdn/wfcrus/tracks-v2a1/index.m3u8',
         'HD',
         'world_fashion_channel'
     ],
     [
         'Fashion TV',
-        'https://stream-01.ix7.dailymotion.com/sec()/dm/3/x3m6nld/live-4.m3u8',
+        URLS.fashiontv,
         'FHD',
         'fashion_tv'
     ]
