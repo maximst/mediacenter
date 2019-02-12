@@ -29,7 +29,8 @@ def update_chastv(r=None):
 class URLS(object):
     ntv_re = re.compile('\/\/mob3\-ntv\.cdnvideo\.ru\/ntv\/smil\:ntvair003\.smil\/playlist\.m3u8\?e\=[0-9]+\&md5=[^\']+')
     five_re = re.compile('\/watch\?v=[^"]+')
-    fashiontv_re = re.compile('sec=(?P<sec>[^"^&]+)')
+    fashiontv_re1 = re.compile('sec=(?P<sec>[^"^&]+)')
+    fashiontv_re2 = re.compile('sec\(.+\)')
 
 
     @classmethod
@@ -89,10 +90,13 @@ class URLS(object):
     @classmethod
     def fashiontv(cls):
         res = requests.get('https://www.dailymotion.com/embed/video/x3m6nld')
-        sr = cls.fashiontv_re.search(res.text)
+        sr = cls.fashiontv_re1.search(res.text)
         if sr:
             sec = sr.groupdict().get('sec', '')
-            return 'https://stream-09.dc3.dailymotion.com/sec({sec})/dm/3/x3m6nld/s/live-4.m3u8'.format(sec=sec)
+            res = requests.get('https://www.dailymotion.com/cdn/live/video/x3m6nld.m3u8?redirect=0&sec={}'.format(sec))
+            sr = cls.fashiontv_re2.search(res.text)
+            if sr:
+                return 'https://stream-09.dc3.dailymotion.com/{}/dm/3/x3m6nld/s/live-4.m3u8'.format(sr.group());
         return ''
 
     @classmethod

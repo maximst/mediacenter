@@ -4,6 +4,7 @@ YOUTUBE_API_KEY = ''
 
 MPV_VO = 'vdpau'
 
+MEDIA_SERVER = 'localhost:8080'
 
 try:
     from local_conf import *

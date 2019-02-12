@@ -13,6 +13,7 @@ from categories import Categories
 from youtube import YouTubeView
 from tv import TVView
 from onetv import OneTvView
+from folder import FolderView
 
 
 class Overlay(QWidget):
@@ -78,8 +79,10 @@ class Main(QMainWindow):
         self.tv = TVView(self)
         self.onetv = OneTvView(self)
         self.onetv_class = OneTvView
+        self.folder = FolderView(self)
+        self.folder_class = FolderView
 
-        self.views = ('youtube', 'tv', 'onetv')
+        self.views = ('youtube', 'tv', 'onetv', 'folder')
 
         #self.container = MainWidget(self)
         self.container = QScrollArea()
@@ -157,6 +160,9 @@ class Main(QMainWindow):
 
     def show_onetv(self):
         self._show_view('onetv')
+
+    def show_folder(self):
+        self._show_view('folder')
 
     @click_protection
     def keyPressEvent(self, event):
