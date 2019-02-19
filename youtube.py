@@ -296,7 +296,7 @@ class YouTubeView(QWidget):
         self.search_layout.addWidget(QLabel('Search'))
         self.search_layout.addWidget(self.search)
         self.layout.addLayout(self.search_layout)
-        self.layout.setContentsMargins(20, 20, 20, 0)
+        self.layout.setContentsMargins(70, 50, 70, 50)
         self.layout.setSpacing(0)
 
     def init_keyboard(self):
@@ -547,6 +547,7 @@ class YouTubeView(QWidget):
         self.rec_next = continuations[0].get('nextContinuationData', {}).get('clickTrackingParams')
         self.rec_continuation = continuations[0].get('nextContinuationData', {}).get('continuation')
         self.window().container.ensureWidgetVisible(first_w, 0, 0)
+        self.search.setFocus()
 
     @click_protection
     def search_activated(self, event):

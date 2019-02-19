@@ -1,0 +1,13 @@
+chromium-browser "https://accounts.google.com/o/oauth2/auth?client_id=<client_id>&response_type=code&redirect_uri=urn:ietf:wg:oauth:2.0:oob&scope=https://www.googleapis.com/auth/youtube+https://www.googleapis.com/auth/youtube.readonly&access_type=offline"
+
+# Get token
+curl -X POST "https://www.googleapis.com/oauth2/v4/token" -d "code=<code_from_response>&grant_type=authorization_code&client_id=<client_id>&client_secret=<client_secret>&redirect_uri=urn:ietf:wg:oauth:2.0:oob"
+
+# Refresh token
+curl -X POST "https://www.googleapis.com/oauth2/v4/token" -d "refresh_token=<refresh_token>&grant_type=refresh_token&client_id=<client_id>&client_secret=<client_secret>"
+
+
+curl "https://www.googleapis.com/youtube/v3/activities?home=true&regionCode=ru&access_token=<access_token>"
+
+
+curl -X POST "https://www.googleapis.com/youtube/v3/activities?part=snippet,ContentDetails" -d '{"regionCode":"ru","snippet":{"description":"xxxxxxxxxxxx","title":"Test title", "channelTitle":"aaaaaaaaa"},"contentDetails":{"bulletin":{"resourceId":{"kind":"youtube#video","videoId":"<video_id>"}}}}' -H "Authorization: Bearer <access_token>" -H "Content-Type: application/json" -vvv

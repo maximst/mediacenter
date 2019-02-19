@@ -122,7 +122,7 @@ class Player(object):
             'ytdl_format': "bestvideo[height<=1080][vcodec!=vp9]+bestaudio/best[height<=1080]",
             'vo': conf.MPV_VO,
             'hwdec_codecs': 'all',
-            'video_zoom': -0.1,
+            'video_zoom': -0.05,
             'log_handler': print
         }
         if hasattr(conf, 'MPV_HWDEC'):

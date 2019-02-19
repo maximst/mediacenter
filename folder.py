@@ -109,7 +109,7 @@ class FolderView(QWidget):
         elif _file['type'] == 'directory':
             return 'directory'
 
-        mt = filter(lambda m: _file['name'].split('.')[-1] in m[1], self.MIMETYPES)
+        mt = filter(lambda m: _file['name'].split('.')[-1].lower() in m[1], self.MIMETYPES)
         return (list(mt) or [['other']])[0][0]
 
     def get_icon(self, mime):
